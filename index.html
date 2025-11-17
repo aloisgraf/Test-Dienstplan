@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dienstplan Dezember 2023</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Dezember 2023 · 4 Dienste pro Tag</div>
+    <h1>Dienstplan-Übersicht</h1>
+    <p class="lede">Alle 31 Tage sind mit den Diensten Nacht Calltaker (NCN), Nacht Disponent*in (NdN), Tag Disponent*in (ND1) und Tag Calltaker (C1) besetzt. Jede Schicht umfasst 12 Stunden.</p>
+    <div class="legend">
+      <span class="pill night">Nacht</span>
+      <span class="pill weekend">Wochenende</span>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2>Filter</h2>
+      <button id="resetFilters" type="button" class="ghost">Zurücksetzen</button>
+    </div>
+    <div class="filters">
+      <label>
+        <span>Mitarbeiter*in</span>
+        <select id="employeeFilter"></select>
+      </label>
+      <label>
+        <span>Dienst</span>
+        <select id="shiftFilter">
+          <option value="">Alle Dienste</option>
+        </select>
+      </label>
+      <label>
+        <span>Nur Wochenenden</span>
+        <input type="checkbox" id="weekendFilter">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2>Dienstplan</h2>
+      <p id="resultCount" class="muted"></p>
+    </div>
+    <div class="table-wrapper">
+      <table id="scheduleTable">
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>Datum</th>
+            <th>Wochentag</th>
+            <th>NCN</th>
+            <th>NdN</th>
+            <th>ND1</th>
+            <th>C1</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2>Verteilung nach Mitarbeiter*in</h2>
+      <p class="muted">Berechnung basiert auf dem obigen Plan (12 Stunden pro Schicht).</p>
+    </div>
+    <div class="table-wrapper">
+      <table id="summaryTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Schichten</th>
+            <th>Stunden</th>
+            <th>Nachtschichten</th>
+            <th>Wochenendtage</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__header">
+      <h2>Legende</h2>
+    </div>
+    <dl class="legend-list">
+      <div>
+        <dt>NCN</dt>
+        <dd>Nacht Calltaker</dd>
+      </div>
+      <div>
+        <dt>NdN</dt>
+        <dd>Nacht Disponent*in</dd>
+      </div>
+      <div>
+        <dt>ND1</dt>
+        <dd>Tag Disponent*in</dd>
+      </div>
+      <div>
+        <dt>C1</dt>
+        <dd>Tag Calltaker</dd>
+      </div>
+    </dl>
+  </section>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
