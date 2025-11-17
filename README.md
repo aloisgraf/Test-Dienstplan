@@ -11,7 +11,7 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 - **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden und Nachtdienste für die automatische Generierung.
 - **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer und Stundensoll; Spalten für alle Tage des Monats mit Wochentag unter dem Datum.
 - **Farbcodierung**: Samstage hellgrau, Sonntage dunkelgrau, österreichische Feiertage (Salzburg) gelb.
-- **Navigation**: Monate per Pfeiltaste oder Buttons wechseln.
+- **Navigation**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Menüs; Monate per Pfeiltaste oder Buttons wechseln, Start immer im aktuellen Monat.
 - **Interaktion**: Zellen per Dropdown setzen, sperren und für die Auto-Generierung ausnehmen; Button „Dienstplan generieren“ verteilt hinterlegte Dienste nach Funktion und Regeln.
 
 ## Dateien

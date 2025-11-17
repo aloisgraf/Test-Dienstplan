@@ -54,8 +54,8 @@ const SALZBURG_HOLIDAYS = {
   '12-26': 'Stefanitag',
 };
 
-const tabs = document.querySelectorAll('.tabs button');
-const adminPanels = document.querySelectorAll('.admin-panel');
+const menuButtons = document.querySelectorAll('.main-menu button');
+const screens = document.querySelectorAll('[data-screen]');
 const employeeForm = document.getElementById('employeeForm');
 const serviceForm = document.getElementById('serviceForm');
 const functionForm = document.getElementById('functionForm');
@@ -81,7 +81,8 @@ const nextMonthBtn = document.getElementById('nextMonth');
 const generateBtn = document.getElementById('generatePlan');
 
 let state = loadState();
-let currentMonth = new Date(2023, 11, 1); // Dezember 2023 als Start
+let currentMonth = new Date();
+currentMonth.setDate(1);
 const editing = { employee: null, service: null, function: null, employment: null };
 
 function loadState() {
@@ -384,9 +385,18 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function showPanel(target) {
-  tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.panel === target));
-  adminPanels.forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== target));
+function showScreen(target) {
+  menuButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.target === target));
+  screens.forEach((panel) => {
+    if (panel.dataset.screen === target) {
+      panel.removeAttribute('hidden');
+    } else {
+      panel.setAttribute('hidden', '');
+    }
+  });
+  if (target === 'roster') {
+    renderRoster();
+  }
 }
 
 function buildRosterHeader(date) {
@@ -632,7 +642,7 @@ function handleEmploymentPickerChange() {
 }
 
 function wireEvents() {
-  tabs.forEach((btn) => btn.addEventListener('click', () => showPanel(btn.dataset.panel)));
+  menuButtons.forEach((btn) => btn.addEventListener('click', () => showScreen(btn.dataset.target)));
   employeeForm.addEventListener('submit', handleEmployeeForm);
   serviceForm.addEventListener('submit', handleServiceForm);
   functionForm.addEventListener('submit', handleFunctionForm);
@@ -655,7 +665,7 @@ function wireEvents() {
 
 function init() {
   updateDropdowns();
-  showPanel('employees');
+  showScreen('roster');
   renderEmployees();
   renderServices();
   renderFunctions();
