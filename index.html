@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dienstplan-Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Dienstplanung · Salzburg</p>
+      <h1>Dienstplan- und Admin-Console</h1>
+      <p class="lede">Verwalte Mitarbeitende, Dienste, Funktionen, Anstellungsverhältnisse und Regeln. Generiere den Monatsplan und passe einzelne Zellen mit Sperrfunktion an.</p>
+    </div>
+    <div class="actions">
+      <button id="generatePlan" type="button" class="primary">Dienstplan generieren</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel admin">
+      <div class="panel__header">
+        <h2>Admin</h2>
+        <nav class="tabs" aria-label="Admin-Menüs">
+          <button type="button" data-panel="employees" class="active">Mitarbeitende</button>
+          <button type="button" data-panel="services">Dienste</button>
+          <button type="button" data-panel="functions">Funktionen</button>
+          <button type="button" data-panel="employment">Anstellungsverhältnisse</button>
+          <button type="button" data-panel="rules">Regeln</button>
+        </nav>
+      </div>
+
+      <div class="admin-panel" data-panel="employees">
+        <div class="picker-row">
+          <label>Mitarbeiter
+            <select id="employeePicker"></select>
+          </label>
+        </div>
+        <form id="employeeForm" class="grid">
+          <label>Vorname<input name="firstName" required></label>
+          <label>Nachname<input name="lastName" required></label>
+          <label>Personalnummer<input name="personnelNumber" required></label>
+          <label>Geburtstag<input type="date" name="birthday" required></label>
+          <label>Anstellung in %
+            <select name="employmentPercent" id="employmentPercentSelect"></select>
+          </label>
+          <label>Anstellung in Stunden pro Monat
+            <select name="employmentHours" id="employmentHoursSelect"></select>
+          </label>
+          <label>Funktion
+            <select name="functionId" id="functionSelect"></select>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="nightAllowed"> Nachtdienst Ja/Nein
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="rkt"> RKT Ja/Nein
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="primary">Speichern</button>
+            <button type="reset" class="ghost">Felder leeren</button>
+          </div>
+        </form>
+        <div class="list" id="employeeList" aria-live="polite"></div>
+      </div>
+
+      <div class="admin-panel hidden" data-panel="services">
+        <div class="picker-row">
+          <label>Dienste
+            <select id="servicePicker"></select>
+          </label>
+        </div>
+        <form id="serviceForm" class="grid">
+          <label>Dienstname<input name="name" required placeholder="z.B. NCN"></label>
+          <label>Beginn<input type="time" name="start" required></label>
+          <label>Ende<input type="time" name="end" required></label>
+          <div class="form-actions">
+            <button type="submit" class="primary">Dienst speichern</button>
+            <button type="reset" class="ghost">Felder leeren</button>
+          </div>
+        </form>
+        <div class="list" id="serviceList" aria-live="polite"></div>
+      </div>
+
+      <div class="admin-panel hidden" data-panel="functions">
+        <div class="picker-row">
+          <label>Funktion
+            <select id="functionPicker"></select>
+          </label>
+        </div>
+        <form id="functionForm" class="grid">
+          <label>Funktionsname<input name="name" required></label>
+          <label>Dienste zuweisen
+            <select name="serviceIds" id="functionServices" multiple size="5"></select>
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="primary">Funktion speichern</button>
+            <button type="reset" class="ghost">Felder leeren</button>
+          </div>
+        </form>
+        <div class="list" id="functionList" aria-live="polite"></div>
+      </div>
+
+      <div class="admin-panel hidden" data-panel="employment">
+        <div class="picker-row">
+          <label>Anstellungsverhältnis
+            <select id="employmentPicker"></select>
+          </label>
+        </div>
+        <form id="employmentForm" class="grid">
+          <label>Anstellung in %<input type="number" name="percent" min="0" max="200" step="5" required></label>
+          <label>Anstellung in Stunden pro Monat<input type="number" name="hours" min="0" step="1" required></label>
+          <div class="form-actions">
+            <button type="submit" class="primary">Anstellungsverhältnis speichern</button>
+            <button type="reset" class="ghost">Felder leeren</button>
+          </div>
+        </form>
+        <div class="list" id="employmentList" aria-live="polite"></div>
+      </div>
+
+      <div class="admin-panel hidden" data-panel="rules">
+        <form id="rulesForm" class="grid">
+          <label>Ruhetage nach Dienst (Tage)<input type="number" name="restDays" min="0" step="1"></label>
+          <label>Max. Arbeitszeit pro Woche (Stunden)<input type="number" name="maxHoursWeek" min="0" step="1"></label>
+          <label>Max. Arbeitszeit pro Monat (Stunden)<input type="number" name="maxHoursMonth" min="0" step="1"></label>
+          <label>Max. Wochenenden verplant (Tage)<input type="number" name="maxWeekendDays" min="0" step="1"></label>
+          <label>Max. Nachtdienste<input type="number" name="maxNights" min="0" step="1"></label>
+          <div class="form-actions">
+            <button type="submit" class="primary">Regeln speichern</button>
+          </div>
+        </form>
+        <div class="list" id="rulesSummary" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header roster-header">
+        <div>
+          <p class="eyebrow">Monatsraster</p>
+          <h2 id="monthLabel"></h2>
+          <p class="muted">Navigation mit Pfeiltasten ←/→ möglich. Samstage sind hellgrau, Sonntage dunkelgrau, Feiertage in Salzburg gelb.</p>
+        </div>
+        <div class="month-controls">
+          <button type="button" id="prevMonth" class="ghost">◀</button>
+          <button type="button" id="nextMonth" class="ghost">▶</button>
+        </div>
+      </div>
+      <div class="table-wrapper roster">
+        <table id="rosterTable" aria-describedby="monthLabel"></table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
