@@ -329,8 +329,9 @@ function renderRoster() {
           <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
         </div>
       `;
-      rosterTable.appendChild(tr).appendChild(td);
+      tr.appendChild(td);
     }
+    rosterTable.appendChild(tr);
   });
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
@@ -407,6 +408,17 @@ function generateRoster() {
   const days = daysInMonth(currentMonth);
   const rules = state.rules;
 
+  // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
+  state.employees.forEach((emp) => {
+    if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
+    for (let day = 1; day <= days; day++) {
+      const locked = state.locks[monthKey]?.[emp.id]?.[day];
+      if (!locked) {
+        delete state.assignments[monthKey][emp.id][day];
+      }
+    }
+  });
+
   for (let day = 1; day <= days; day++) {
     for (const service of state.services) {
       state.employees
@@ -470,6 +482,7 @@ function wireEvents() {
 
 function init() {
   updateDropdowns();
+  showPanel('employees');
   renderEmployees();
   renderServices();
   renderFunctions();
