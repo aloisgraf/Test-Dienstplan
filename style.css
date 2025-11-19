@@ -190,7 +190,11 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 .saturday { background: var(--saturday); color: #0b1224; }
 .holiday { background: var(--holiday); color: #0b1224; font-weight: 700; }
 
-.cell { display: grid; gap: .35rem; }
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
 .cell select { width: 100%; }
 .cell .lock { display: inline-flex; align-items: center; gap: .4rem; justify-content: center; font-size: .8rem; }
 
