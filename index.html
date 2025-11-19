@@ -180,27 +180,70 @@
             <div class="weekday-services">
               <p class="eyebrow">Pflichtdienste pro Wochentag</p>
               <div class="weekday-grid">
-                <label>Montag
-                  <select multiple size="4" data-weekday-select="1"></select>
-                </label>
-                <label>Dienstag
-                  <select multiple size="4" data-weekday-select="2"></select>
-                </label>
-                <label>Mittwoch
-                  <select multiple size="4" data-weekday-select="3"></select>
-                </label>
-                <label>Donnerstag
-                  <select multiple size="4" data-weekday-select="4"></select>
-                </label>
-                <label>Freitag
-                  <select multiple size="4" data-weekday-select="5"></select>
-                </label>
-                <label>Samstag
-                  <select multiple size="4" data-weekday-select="6"></select>
-                </label>
-                <label>Sonntag
-                  <select multiple size="4" data-weekday-select="0"></select>
-                </label>
+                <div class="weekday-field" data-weekday-field="1">
+                  <strong>Montag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="1"></select>
+                    <button type="button" data-weekday-add="1">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="1"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="2">
+                  <strong>Dienstag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="2"></select>
+                    <button type="button" data-weekday-add="2">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="2"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="3">
+                  <strong>Mittwoch</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="3"></select>
+                    <button type="button" data-weekday-add="3">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="3"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="4">
+                  <strong>Donnerstag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="4"></select>
+                    <button type="button" data-weekday-add="4">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="4"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="5">
+                  <strong>Freitag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="5"></select>
+                    <button type="button" data-weekday-add="5">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="5"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="6">
+                  <strong>Samstag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="6"></select>
+                    <button type="button" data-weekday-add="6">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="6"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="0">
+                  <strong>Sonntag</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="0"></select>
+                    <button type="button" data-weekday-add="0">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="0"></div>
+                </div>
+                <div class="weekday-field" data-weekday-field="holiday">
+                  <strong>Feiertage (Salzburg)</strong>
+                  <div class="weekday-controls">
+                    <select data-weekday-select="holiday"></select>
+                    <button type="button" data-weekday-add="holiday">Hinzufügen</button>
+                  </div>
+                  <div class="weekday-chips" data-weekday-list="holiday"></div>
+                </div>
               </div>
             </div>
             <div class="form-actions">

@@ -56,6 +56,7 @@ const DEFAULT_RULES = {
     4: [],
     5: [],
     6: [],
+    holiday: [],
   },
 };
 
@@ -75,6 +76,8 @@ const SALZBURG_HOLIDAYS = {
   '12-25': 'Christtag',
   '12-26': 'Stefanitag',
 };
+
+const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '0', 'holiday'];
 
 const menuButtons = document.querySelectorAll('.main-menu button');
 const screens = document.querySelectorAll('[data-screen]');
@@ -104,12 +107,14 @@ const generateBtn = document.getElementById('generatePlan');
 const saveFileBtn = document.getElementById('saveFile');
 const loadFileBtn = document.getElementById('loadFile');
 const loadFileInput = document.getElementById('loadFileInput');
-const weekdayRules = document.querySelectorAll('[data-weekday-select]');
+const weekdaySelects = document.querySelectorAll('[data-weekday-select]');
+const weekdayFields = document.querySelectorAll('[data-weekday-field]');
 
 let state = loadState();
 let currentMonth = new Date();
 currentMonth.setDate(1);
 const editing = { employee: null, service: null, function: null, employment: null };
+let weekdaySelections = ensureWeekdaySelections(state.rules.weekdayServices);
 
 function loadState() {
   const employment = loadArray(STORAGE_KEYS.employmentTypes, DEFAULT_EMPLOYMENT);
@@ -277,6 +282,15 @@ function formatHours(value) {
   return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
 }
 
+function ensureWeekdaySelections(source = {}) {
+  const cleaned = {};
+  WEEKDAY_KEYS.forEach((key) => {
+    const raw = Array.isArray(source?.[key]) ? source[key] : [];
+    cleaned[key] = raw.filter((id) => state.services.some((s) => s.id === id));
+  });
+  return cleaned;
+}
+
 function updateDropdowns() {
   const prevEmployee = employeePicker.value;
   const prevService = servicePicker.value;
@@ -329,15 +343,85 @@ function renderEmployment() {
   employmentList.innerHTML = state.employment.map((e) => `<div class="item"><strong>${e.percent}%</strong><small>${e.hours} Stunden/Monat</small></div>`).join('');
 }
 
-function renderRules() {
-  const r = state.rules;
-  weekdayRules.forEach((select) => {
-    const weekday = select.dataset.weekdaySelect;
-    const selected = r.weekdayServices?.[weekday] || [];
-    select.innerHTML = state.services
-      .map((s) => `<option value="${s.id}" ${selected.includes(s.id) ? 'selected' : ''}>${s.name} (${s.start}–${s.end})</option>`)
+function renderWeekdaySelects() {
+  weekdaySelects.forEach((select) => {
+    const previous = select.value;
+    const options = state.services
+      .map((s) => `<option value="${s.id}">${s.name} (${s.start}–${s.end})</option>`)
+      .join('');
+    select.innerHTML = '<option value="">Dienst auswählen…</option>' + options;
+    if (previous && state.services.some((s) => s.id === previous)) {
+      select.value = previous;
+    } else {
+      select.value = '';
+    }
+  });
+}
+
+function renderWeekdayLists() {
+  weekdayFields.forEach((field) => {
+    const weekday = field.dataset.weekdayField;
+    const container = field.querySelector('[data-weekday-list]');
+    const list = weekdaySelections[weekday] || [];
+    if (!list.length) {
+      container.innerHTML = '<span class="weekday-placeholder muted">Keine Dienste hinterlegt</span>';
+      return;
+    }
+    container.innerHTML = list
+      .map((id) => {
+        const service = state.services.find((s) => s.id === id);
+        if (!service) return '';
+        return `<span class="weekday-chip">${service.name}<button type="button" data-remove-service="${id}" aria-label="${service.name} entfernen">×</button></span>`;
+      })
       .join('');
   });
+}
+
+function renderWeekdayControls() {
+  renderWeekdaySelects();
+  renderWeekdayLists();
+}
+
+function setupWeekdayInteractions() {
+  weekdayFields.forEach((field) => {
+    const weekday = field.dataset.weekdayField;
+    const addBtn = field.querySelector('[data-weekday-add]');
+    const select = field.querySelector('[data-weekday-select]');
+    const list = field.querySelector('[data-weekday-list]');
+    if (addBtn && select) {
+      addBtn.addEventListener('click', () => {
+        const value = select.value;
+        if (!value) return;
+        if (!weekdaySelections[weekday]) weekdaySelections[weekday] = [];
+        if (!weekdaySelections[weekday].includes(value)) {
+          weekdaySelections[weekday].push(value);
+          renderWeekdayLists();
+        }
+        select.value = '';
+      });
+    }
+    if (list) {
+      list.addEventListener('click', (event) => {
+        const base = event.target instanceof Element ? event.target.closest('[data-remove-service]') : null;
+        if (!base) return;
+        const toRemove = base.dataset.removeService;
+        weekdaySelections[weekday] = (weekdaySelections[weekday] || []).filter((id) => id !== toRemove);
+        renderWeekdayLists();
+      });
+    }
+  });
+}
+
+function renderRules() {
+  const r = state.rules;
+  const form = rulesForm.elements;
+  form.restDays.value = r.restDays ?? '';
+  form.maxHoursWeek.value = r.maxHoursWeek ?? '';
+  form.maxHoursMonth.value = r.maxHoursMonth ?? '';
+  form.maxWeekendDays.value = r.maxWeekendDays ?? '';
+  form.maxNights.value = r.maxNights ?? '';
+  weekdaySelections = ensureWeekdaySelections(r.weekdayServices);
+  renderWeekdayControls();
   rulesSummary.innerHTML = `<div class="item"><div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${r.maxHoursWeek ?? '–'} Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'}</small></div>`;
 }
 
@@ -485,13 +569,11 @@ function handleRulesForm(e) {
     maxHoursMonth: toNumber(data.get('maxHoursMonth')),
     maxWeekendDays: toNumber(data.get('maxWeekendDays')),
     maxNights: toNumber(data.get('maxNights')),
-    weekdayServices: Array.from(weekdayRules).reduce((acc, select) => {
-      acc[select.dataset.weekdaySelect] = Array.from(select.selectedOptions).map((opt) => opt.value);
-      return acc;
-    }, {}),
+    weekdayServices: ensureWeekdaySelections(weekdaySelections),
   };
   saveState();
   renderRules();
+  renderRoster();
 }
 
 function toNumber(value) {
@@ -662,9 +744,13 @@ function generateRoster() {
   });
 
   for (let day = 1; day <= days; day++) {
-    const weekday = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).getDay();
-    const servicesForDay = (rules.weekdayServices?.[weekday] || []).length
-      ? state.services.filter((s) => rules.weekdayServices[weekday].includes(s.id))
+    const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const weekday = currentDate.getDay();
+    const holidayServices = isHoliday(currentDate) ? rules.weekdayServices?.holiday || [] : [];
+    const weekdayServices = rules.weekdayServices?.[weekday] || [];
+    const requiredIds = holidayServices.length ? holidayServices : weekdayServices;
+    const servicesForDay = requiredIds.length
+      ? state.services.filter((s) => requiredIds.includes(s.id))
       : state.services;
     for (const service of servicesForDay) {
       state.employees
@@ -686,7 +772,7 @@ function generateRoster() {
           if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return false;
           const nextHours = hoursForEmployee(monthKey, emp.id) + serviceDuration(service);
           if (rules.maxHoursMonth && nextHours > rules.maxHoursMonth) return false;
-          const nextWeekends = countWeekends(monthKey, emp.id) + (isWeekend(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)) ? 1 : 0);
+          const nextWeekends = countWeekends(monthKey, emp.id) + (isWeekend(currentDate) ? 1 : 0);
           if (rules.maxWeekendDays && nextWeekends > rules.maxWeekendDays) return false;
           const nextNights = countNights(monthKey, emp.id) + (/nacht/i.test(service.name) ? 1 : 0);
           if (rules.maxNights && nextNights > rules.maxNights) return false;
@@ -805,6 +891,7 @@ function init() {
   renderServices();
   renderFunctions();
   renderEmployment();
+  setupWeekdayInteractions();
   renderRules();
   renderRoster();
   wireEvents();

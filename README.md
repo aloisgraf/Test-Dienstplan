@@ -8,7 +8,7 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 - **Dienste**: Name und Zeitfenster (von/bis). Die Dauer wird automatisch berechnet.
 - **Funktionen**: Diensten zuordenbar; Funktionen können Mitarbeitenden zugewiesen werden.
 - **Anstellungsverhältnisse**: Prozent und Stunden pro Monat; Auswahl der % füllt automatisch die Stunden im Mitarbeitenden-Formular.
-- **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden, Nachtdienste sowie pro Wochentag auswählbare Pflichtdienste für die automatische Generierung.
+- **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden, Nachtdienste sowie Pflichtdienste pro Wochentag **und** österreichischem Feiertag (Salzburg) – Diensten lassen sich komfortabel hinzufügen oder entfernen.
 - **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer, Stundensoll und „Noch zu verplanen“; Spalten für alle Tage des Monats mit Wochentag unter dem Datum und je Zelle ein eigenes Dropdown.
 - **Farbcodierung**: Samstage hellgrau, Sonntage dunkelgrau, österreichische Feiertage (Salzburg) gelb.
 - **Navigation**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Menüs; Monate per Pfeiltaste oder Buttons wechseln, Start immer im aktuellen Monat.
