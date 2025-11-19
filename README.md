@@ -1,6 +1,6 @@
 # Test-Dienstplan
 
-Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für Monatsdienstpläne. Alle Daten werden lokal im Browser gespeichert, können aber zusätzlich als JSON-Datei exportiert/importiert werden und kommen ohne Backend aus.
+Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für Monatsdienstpläne. Alle Daten werden lokal im Browser gespeichert und bei jeder Änderung als JSON-Datei gespiegelt (zusätzlich manuell exportier-/importierbar) – komplett ohne Backend.
 
 ## Funktionsumfang
 - **Admin-Menüs** für Mitarbeitende, Dienste, Funktionen, Anstellungsverhältnisse, Regeln.
@@ -8,8 +8,8 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 - **Dienste**: Name und Zeitfenster (von/bis). Die Dauer wird automatisch berechnet.
 - **Funktionen**: Diensten zuordenbar; Funktionen können Mitarbeitenden zugewiesen werden.
 - **Anstellungsverhältnisse**: Prozent und Stunden pro Monat; Auswahl der % füllt automatisch die Stunden im Mitarbeitenden-Formular.
-- **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden und Nachtdienste für die automatische Generierung.
-- **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer und Stundensoll; Spalten für alle Tage des Monats mit Wochentag unter dem Datum.
+- **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden, Nachtdienste sowie pro Wochentag auswählbare Pflichtdienste für die automatische Generierung.
+- **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer, Stundensoll und „Noch zu verplanen“; Spalten für alle Tage des Monats mit Wochentag unter dem Datum und je Zelle ein eigenes Dropdown.
 - **Farbcodierung**: Samstage hellgrau, Sonntage dunkelgrau, österreichische Feiertage (Salzburg) gelb.
 - **Navigation**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Menüs; Monate per Pfeiltaste oder Buttons wechseln, Start immer im aktuellen Monat.
 - **Interaktion**: Zellen per Dropdown setzen, sperren und für die Auto-Generierung ausnehmen; Button „Dienstplan generieren“ verteilt hinterlegte Dienste nach Funktion und Regeln.
@@ -18,7 +18,7 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 
 | Datei | Beschreibung |
 | --- | --- |
-| `index.html`, `app.js`, `style.css` | Einstiegsseite mit Admin-Bereich, Monatsraster, Generierung und lokalem Datenspeicher (localStorage) plus JSON-Export/Import. |
+| `index.html`, `app.js`, `style.css` | Einstiegsseite mit Admin-Bereich, Monatsraster, Generierung und lokalem Datenspeicher (localStorage) sowie automatischer/ manueller JSON-Ablage. |
 
 ## Starten
 
@@ -29,8 +29,8 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
    python -m http.server 8000
    ```
 
-3. `http://localhost:8000` im Browser öffnen. Alle Eingaben werden im LocalStorage gespeichert; ein Refresh lässt die Daten bestehen. Über „Speichern als Datei“/„Datei laden“ kann der komplette Datenstand lokal gesichert oder wiederhergestellt werden.
-4. Über „Dienstplan generieren“ werden die definierten Dienste pro Tag und Funktion auf passende Mitarbeitende verteilt. Gesperrte Zellen bleiben unverändert.
+3. `http://localhost:8000` im Browser öffnen. Alle Eingaben werden im LocalStorage gespiegelt und zusätzlich automatisch als JSON-Datei heruntergeladen. Über „Speichern als Datei“/„Datei laden“ kann der komplette Datenstand manuell gesichert oder wiederhergestellt werden.
+4. Über „Dienstplan generieren“ werden die definierten Dienste pro Tag und Funktion auf passende Mitarbeitende verteilt. Gesperrte Zellen bleiben unverändert; Pflichtdienste pro Wochentag werden berücksichtigt.
 
 ## Feiertage (Salzburg, exemplarisch)
 - 1.1. Neujahr

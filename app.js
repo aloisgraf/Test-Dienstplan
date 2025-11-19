@@ -42,7 +42,22 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
   { id: uuid(), firstName: 'Chris', lastName: 'Lenz', personnelNumber: '1003', birthday: '1992-03-21', employmentPercent: employment[2].id, employmentHours: employment[2].id, functionId: functions[0].id, nightAllowed: false, rkt: false },
 ];
 
-const DEFAULT_RULES = { restDays: 1, maxHoursWeek: 40, maxHoursMonth: 173, maxWeekendDays: 6, maxNights: 8 };
+const DEFAULT_RULES = {
+  restDays: 1,
+  maxHoursWeek: 40,
+  maxHoursMonth: 173,
+  maxWeekendDays: 6,
+  maxNights: 8,
+  weekdayServices: {
+    0: [],
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: [],
+    6: [],
+  },
+};
 
 const SALZBURG_HOLIDAYS = {
   // month-day: label
@@ -89,6 +104,7 @@ const generateBtn = document.getElementById('generatePlan');
 const saveFileBtn = document.getElementById('saveFile');
 const loadFileBtn = document.getElementById('loadFile');
 const loadFileInput = document.getElementById('loadFileInput');
+const weekdayRules = document.querySelectorAll('[data-weekday-select]');
 
 let state = loadState();
 let currentMonth = new Date();
@@ -100,7 +116,12 @@ function loadState() {
   const services = loadArray(STORAGE_KEYS.services, DEFAULT_SERVICES);
   const functions = loadArray(STORAGE_KEYS.functions, DEFAULT_FUNCTIONS(services));
   const employees = loadArray(STORAGE_KEYS.employees, DEFAULT_EMPLOYEES(employment, functions));
-  const rules = loadValue(STORAGE_KEYS.rules, DEFAULT_RULES);
+  const storedRules = loadValue(STORAGE_KEYS.rules, DEFAULT_RULES);
+  const rules = {
+    ...DEFAULT_RULES,
+    ...storedRules,
+    weekdayServices: { ...DEFAULT_RULES.weekdayServices, ...(storedRules?.weekdayServices || {}) },
+  };
   const assignments = loadValue(STORAGE_KEYS.assignments, {});
   const locks = loadValue(STORAGE_KEYS.locks, {});
   return { employment, services, functions, employees, rules, assignments, locks };
@@ -135,6 +156,8 @@ function loadValue(key, fallback) {
   }
 }
 
+let saveTimer;
+
 function saveState() {
   localStorage.setItem(STORAGE_KEYS.employees, JSON.stringify(state.employees));
   localStorage.setItem(STORAGE_KEYS.services, JSON.stringify(state.services));
@@ -143,6 +166,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.rules, JSON.stringify(state.rules));
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(state.assignments));
   localStorage.setItem(STORAGE_KEYS.locks, JSON.stringify(state.locks));
+  scheduleFileSave();
 }
 
 function downloadStateFile() {
@@ -155,6 +179,17 @@ function downloadStateFile() {
   URL.revokeObjectURL(url);
 }
 
+function scheduleFileSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      downloadStateFile();
+    } catch (e) {
+      console.warn('Konnte lokale Datei nicht speichern', e);
+    }
+  }, 250);
+}
+
 function importState(json) {
   try {
     const parsed = JSON.parse(json);
@@ -163,7 +198,14 @@ function importState(json) {
       services: parsed.services ?? [],
       functions: parsed.functions ?? [],
       employment: parsed.employment ?? [],
-      rules: parsed.rules ?? DEFAULT_RULES,
+      rules: {
+        ...DEFAULT_RULES,
+        ...(parsed.rules || {}),
+        weekdayServices: {
+          ...DEFAULT_RULES.weekdayServices,
+          ...(parsed.rules?.weekdayServices || {}),
+        },
+      },
       assignments: parsed.assignments ?? {},
       locks: parsed.locks ?? {},
     };
@@ -289,6 +331,13 @@ function renderEmployment() {
 
 function renderRules() {
   const r = state.rules;
+  weekdayRules.forEach((select) => {
+    const weekday = select.dataset.weekdaySelect;
+    const selected = r.weekdayServices?.[weekday] || [];
+    select.innerHTML = state.services
+      .map((s) => `<option value="${s.id}" ${selected.includes(s.id) ? 'selected' : ''}>${s.name} (${s.start}–${s.end})</option>`)
+      .join('');
+  });
   rulesSummary.innerHTML = `<div class="item"><div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${r.maxHoursWeek ?? '–'} Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'}</small></div>`;
 }
 
@@ -378,6 +427,7 @@ function handleServiceForm(e) {
   updateDropdowns();
   renderServices();
   renderFunctions();
+  renderRules();
   renderRoster();
   fillServiceForm(entry);
 }
@@ -435,6 +485,10 @@ function handleRulesForm(e) {
     maxHoursMonth: toNumber(data.get('maxHoursMonth')),
     maxWeekendDays: toNumber(data.get('maxWeekendDays')),
     maxNights: toNumber(data.get('maxNights')),
+    weekdayServices: Array.from(weekdayRules).reduce((acc, select) => {
+      acc[select.dataset.weekdaySelect] = Array.from(select.selectedOptions).map((opt) => opt.value);
+      return acc;
+    }, {}),
   };
   saveState();
   renderRules();
@@ -474,6 +528,7 @@ function buildRosterHeader(date) {
     const label = `<div class="day-label"><span>${day}.${String(date.getMonth() + 1).padStart(2, '0')}.</span><span>${weekdayLabel(d)}</span></div>`;
     const cls = [isWeekend(d) ? 'weekend' : '', d.getDay() === 6 ? 'saturday' : '', isHoliday(d) ? 'holiday' : ''].filter(Boolean).join(' ');
     headerRows[0].insertAdjacentHTML('beforeend', `<th class="${cls}" colspan="1">${label}</th>`);
+    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${cls}">${day}</th>`);
   }
   rosterTable.innerHTML = '';
   headerRows.forEach((row) => rosterTable.appendChild(row));
@@ -607,7 +662,11 @@ function generateRoster() {
   });
 
   for (let day = 1; day <= days; day++) {
-    for (const service of state.services) {
+    const weekday = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).getDay();
+    const servicesForDay = (rules.weekdayServices?.[weekday] || []).length
+      ? state.services.filter((s) => rules.weekdayServices[weekday].includes(s.id))
+      : state.services;
+    for (const service of servicesForDay) {
       state.employees
         .filter((emp) => {
           const func = state.functions.find((f) => f.id === emp.functionId);

@@ -177,6 +177,32 @@
             <label>Max. Arbeitszeit pro Monat (Stunden)<input type="number" name="maxHoursMonth" min="0" step="1"></label>
             <label>Max. Wochenenden verplant (Tage)<input type="number" name="maxWeekendDays" min="0" step="1"></label>
             <label>Max. Nachtdienste<input type="number" name="maxNights" min="0" step="1"></label>
+            <div class="weekday-services">
+              <p class="eyebrow">Pflichtdienste pro Wochentag</p>
+              <div class="weekday-grid">
+                <label>Montag
+                  <select multiple size="4" data-weekday-select="1"></select>
+                </label>
+                <label>Dienstag
+                  <select multiple size="4" data-weekday-select="2"></select>
+                </label>
+                <label>Mittwoch
+                  <select multiple size="4" data-weekday-select="3"></select>
+                </label>
+                <label>Donnerstag
+                  <select multiple size="4" data-weekday-select="4"></select>
+                </label>
+                <label>Freitag
+                  <select multiple size="4" data-weekday-select="5"></select>
+                </label>
+                <label>Samstag
+                  <select multiple size="4" data-weekday-select="6"></select>
+                </label>
+                <label>Sonntag
+                  <select multiple size="4" data-weekday-select="0"></select>
+                </label>
+              </div>
+            </div>
             <div class="form-actions">
               <button type="submit" class="primary">Regeln speichern</button>
             </div>
