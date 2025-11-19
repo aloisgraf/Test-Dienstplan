@@ -142,7 +142,7 @@ const SALZBURG_HOLIDAYS = {
 
 const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '0', 'holiday'];
 
-const menuButtons = document.querySelectorAll('.main-menu button');
+const menuButtons = document.querySelectorAll('.main-menu button[data-target]');
 const screens = document.querySelectorAll('[data-screen]');
 const employeeForm = document.getElementById('employeeForm');
 const serviceForm = document.getElementById('serviceForm');
@@ -186,7 +186,6 @@ const vacationList = document.getElementById('vacationList');
 const sickPanel = document.getElementById('sickPanel');
 const sickStartInput = document.getElementById('sickStart');
 const sickEndInput = document.getElementById('sickEnd');
-const sickConfirmedInput = document.getElementById('sickConfirmed');
 const addSickBtn = document.getElementById('addSick');
 const sickList = document.getElementById('sickList');
 const logElements = {
@@ -631,21 +630,42 @@ function vacationStats(emp) {
   const nextYear = currentYear + 1;
   const summaryYears = new Set([currentYear, nextYear]);
   Object.keys(usage).forEach((year) => summaryYears.add(Number(year)));
-  const stats = Array.from(summaryYears)
+  let stats = Array.from(summaryYears)
     .filter((year) => Number.isFinite(year))
-    .sort((a, b) => a - b)
     .map((year) => ({
       year,
       used: usage[year] || 0,
       remaining: Math.max(allowance - (usage[year] || 0), 0),
     }));
+  const ensureStat = (year) => {
+    let entry = stats.find((s) => s.year === year);
+    if (!entry) {
+      entry = { year, used: usage[year] || 0, remaining: Math.max(allowance - (usage[year] || 0), 0) };
+      stats.push(entry);
+    }
+    return entry;
+  };
+  const currentStat = ensureStat(currentYear);
+  const nextStat = ensureStat(nextYear);
+  const carry = Math.max(currentStat.remaining, 0);
+  nextStat.remainingWithCarry = nextStat.remaining + carry;
+  nextStat.carry = carry;
+  stats = stats.sort((a, b) => a.year - b.year);
   return { allowance, stats };
 }
 
 function vacationBalanceText(emp) {
   const { allowance, stats } = vacationStats(emp);
+  const nextYear = currentMonth.getFullYear() + 1;
   const base = `Anspruch: ${allowance} Tage`;
-  const rest = stats.map((entry) => `${entry.year}: ${entry.remaining} Tage frei (${entry.used} verplant)`);
+  const rest = stats.map((entry) => {
+    if (entry.year === nextYear) {
+      const carryText = entry.carry ? `, inkl. ${entry.carry} Tage Übertrag` : '';
+      const remaining = entry.remainingWithCarry ?? entry.remaining;
+      return `${entry.year}: ${remaining} Tage frei (${entry.used} verplant${carryText})`;
+    }
+    return `${entry.year}: ${entry.remaining} Tage frei (${entry.used} verplant)`;
+  });
   return [base].concat(rest).join(' · ');
 }
 
@@ -653,9 +673,14 @@ function employeeVacationLine(emp) {
   const { allowance, stats } = vacationStats(emp);
   const currentYear = currentMonth.getFullYear();
   const nextYear = currentYear + 1;
-  const current = stats.find((entry) => entry.year === currentYear) || { remaining: allowance };
-  const next = stats.find((entry) => entry.year === nextYear) || { remaining: allowance };
-  return `Urlaub: ${allowance} Tage · ${currentYear}: ${current.remaining} offen · ${nextYear}: ${next.remaining} offen`;
+  const current =
+    stats.find((entry) => entry.year === currentYear) ||
+    { year: currentYear, remaining: allowance, used: 0 };
+  const next =
+    stats.find((entry) => entry.year === nextYear) ||
+    { year: nextYear, remaining: allowance, used: 0, remainingWithCarry: allowance + current.remaining };
+  const nextRemaining = next.remainingWithCarry ?? next.remaining + Math.max(current.remaining, 0);
+  return `Urlaub: ${allowance} Tage · ${currentYear}: ${current.remaining} offen · ${nextYear}: ${nextRemaining} offen`;
 }
 
 function calculateVacationDays(startStr, endStr) {
@@ -840,7 +865,18 @@ function renderVacationPanel(emp) {
   vacationList.innerHTML = entries
     .map((entry) => {
       const days = calculateVacationDays(entry.start, entry.end);
-      return `<li><div><strong>${formatVacationRange(entry)}</strong><span class="muted">${days} Tag${days === 1 ? '' : 'e'}</span></div><button type="button" class="ghost" data-remove-vacation="${entry.id}">Entfernen</button></li>`;
+      return `
+        <li>
+          <div class="entry-line">
+            <div>
+              <strong>${formatVacationRange(entry)}</strong>
+              <span class="muted">${days} Tag${days === 1 ? '' : 'e'}</span>
+            </div>
+            <div class="entry-actions">
+              <button type="button" class="ghost" data-remove-vacation="${entry.id}">Entfernen</button>
+            </div>
+          </div>
+        </li>`;
     })
     .join('');
 }
@@ -862,7 +898,21 @@ function renderSickPanel(emp) {
     .map((entry) => {
       const days = calculateVacationDays(entry.start, entry.end);
       const status = entry.confirmed ? 'Meldung erhalten' : 'keine Meldung';
-      return `<li><div><strong>${formatVacationRange(entry)}</strong><span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${status}</span></div><button type="button" class="ghost" data-remove-sick="${entry.id}">Entfernen</button></li>`;
+      return `
+        <li>
+          <div class="entry-line">
+            <div>
+              <strong>${formatVacationRange(entry)}</strong>
+              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${status}</span>
+            </div>
+            <div class="entry-actions">
+              <label class="checkbox inline">
+                <input type="checkbox" data-confirm-sick="${entry.id}" ${entry.confirmed ? 'checked' : ''}> Krankmeldung erhalten
+              </label>
+              <button type="button" class="ghost" data-remove-sick="${entry.id}">Entfernen</button>
+            </div>
+          </div>
+        </li>`;
     })
     .join('');
 }
@@ -933,19 +983,18 @@ function handleAddSick() {
   const start = sickStartInput.value;
   const end = sickEndInput.value || sickStartInput.value;
   const ordered = start <= end ? { start, end } : { start: end, end: start };
-  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: sickConfirmedInput.checked };
+  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: false };
   emp.sickLeaves.push(entry);
   clearAssignmentsForRange(emp.id, entry.start, entry.end);
   appendLog(
     'employees',
-    `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert${entry.confirmed ? ' (Meldung erhalten)' : ''}.`
+    `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`
   );
   saveState();
   renderSickPanel(emp);
   renderRoster();
   sickStartInput.value = '';
   sickEndInput.value = '';
-  sickConfirmedInput.checked = false;
 }
 
 function handleSickListClick(event) {
@@ -959,6 +1008,24 @@ function handleSickListClick(event) {
   if (!confirm('Diesen Krankenstand wirklich entfernen?')) return;
   emp.sickLeaves = emp.sickLeaves.filter((s) => s.id !== entry.id);
   appendLog('employees', `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`);
+  saveState();
+  renderSickPanel(emp);
+  renderRoster();
+}
+
+function handleSickListChange(event) {
+  const checkbox = event.target instanceof HTMLInputElement ? event.target : null;
+  if (!checkbox || !checkbox.dataset.confirmSick) return;
+  if (!editing.employee) return;
+  const emp = state.employees.find((e) => e.id === editing.employee);
+  if (!emp) return;
+  const entry = emp.sickLeaves.find((s) => s.id === checkbox.dataset.confirmSick);
+  if (!entry) return;
+  entry.confirmed = checkbox.checked;
+  appendLog(
+    'employees',
+    `Krankmeldung für ${formatName(emp)} ${checkbox.checked ? 'bestätigt' : 'zurückgenommen'} (${formatVacationRange(entry)}).`
+  );
   saveState();
   renderSickPanel(emp);
   renderRoster();
@@ -1856,7 +1923,10 @@ function wireEvents() {
   if (addVacationBtn) addVacationBtn.addEventListener('click', handleAddVacation);
   if (vacationList) vacationList.addEventListener('click', handleVacationListClick);
   if (addSickBtn) addSickBtn.addEventListener('click', handleAddSick);
-  if (sickList) sickList.addEventListener('click', handleSickListClick);
+  if (sickList) {
+    sickList.addEventListener('click', handleSickListClick);
+    sickList.addEventListener('change', handleSickListChange);
+  }
   if (createGroupBtn) createGroupBtn.addEventListener('click', handleCreateGroup);
   if (assignGroupBtn) assignGroupBtn.addEventListener('click', handleAssignGroup);
   if (removeGroupBtn) removeGroupBtn.addEventListener('click', handleRemoveGroup);

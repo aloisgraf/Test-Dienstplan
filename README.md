@@ -4,8 +4,10 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 
 ## Funktionsumfang
 - **Admin-Menüs** für Mitarbeiter, Dienste, Funktionen, Anstellungsverhältnisse und Regeln – jeder Bereich besitzt jetzt ein eigenes Protokoll, das jede Anlage, Änderung oder Löschung mit Zeitstempel dokumentiert.
+- **Übersichten & Logs**: Unter jedem Formular hebt ein separater Überblicksblock die bestehenden Datensätze hervor; darin können die Log-Einträge per Klick ein- oder ausgeklappt werden.
 - **Mitarbeiter**: Vor-/Nachname, Personalnummer, Geburtstag, Anstellung (%/Stunden), Funktion, Nachtdienst-/RKT-Flags sowie Durchrechnungsfaktor, tägliche Sollarbeitszeit und Urlaubsanspruch. Ein Auswahl-Dropdown lädt bestehende Datensätze und fordert beim Überschreiben eine Bestätigung.
-- **Urlaubs- & Krankenstandsverwaltung**: Beliebig viele Urlaube und Krankenstände pro Person (inkl. Checkbox „Krankmeldung erhalten“). Die Resttage pro Kalenderjahr werden automatisch berechnet, bei Überschreitung erfolgt eine Warnung, im Raster erscheinen „U“-/„K“-Marker und gesperrte Zellen.
+- **Urlaubs- & Krankenstandsverwaltung**: Beliebig viele Urlaube und Krankenstände pro Person. Die Resttage pro Kalenderjahr werden automatisch berechnet, bei Überschreitung erfolgt eine Warnung, im Raster erscheinen „U“-/„K“-Marker und gesperrte Zellen. Der Status „Krankmeldung erhalten“ lässt sich jetzt direkt in der Krankenstandsübersicht per Checkbox nachpflegen.
+- **Urlaubsübertrag**: Der offene Resturlaub des laufenden Jahres wird automatisch auf das Folgejahr addiert und sowohl in der Mitarbeiterliste als auch im Urlaubs-Panel kommuniziert (inkl. Hinweis auf den Übertrag).
 - **Dienste**: Name und Zeitfenster (von/bis) mit automatischer Dauerberechnung und Logeintrag bei Änderungen.
 - **Funktionen**: Bündeln Diensten und können Mitarbeitern zugeordnet werden; jede Speicherung landet im Protokoll.
 - **Anstellungsverhältnisse**: Prozent und Stunden pro Monat; die Prozent-Auswahl trägt die zugehörigen Stunden automatisch ins Formular und protokolliert jede Version.
@@ -14,7 +16,7 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 - **Raster-Ansicht**: Linke Spalte mit Name/Personalnummer, Stundensoll und „Noch zu verplanen“, rechts gleich breite Tagesspalten mit Datum & Wochentag, Geburtstags-Icon, U/K-Badges, Sperr-Checkbox und Dropdown je Zelle.
 - **Offene Dienste**: Unterhalb des Kalenders zeigt eine zusätzliche Zeile pro Tag alle noch unbesetzten Dienste an – sobald alles geplant ist, färbt sich die Zelle grün.
 - **Farbcodierung**: Dezente Hintergründe für Samstag, Sonntag und Feiertage sorgen für Orientierung, bleiben aber gut lesbar.
-- **Reihenfolge & Gruppen**: Drag-&-Drop-Sortierung, Gruppierung und Umbenennen/Löschen von Gruppen inklusive Kontextbuttons im linken Menübereich, die erst erscheinen, wenn mindestens eine Zeile ausgewählt ist.
+- **Reihenfolge & Gruppen**: Drag-&-Drop-Sortierung, Gruppierung und Umbenennen/Löschen von Gruppen inklusive Kontextbuttons im linken Menübereich, die erst erscheinen, wenn mindestens eine Zeile ausgewählt ist (die Dienstplan-Ansicht bleibt dadurch stabil, selbst wenn eine Gruppenerstellung abgebrochen wird).
 - **Navigation & Datenablage**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Formularen, Pfeiltasten- und Button-Navigation durch die Monate sowie ein eigener Block für den JSON-Export/-Import.
 - **Interaktion & Auto-Planung**: Dropdowns setzen Dienste direkt, Sperren schützen Zellen; „Dienstplan generieren“ berücksichtigt Funktionen, Wochentags-/Feiertagsregeln, Nachtdienst-Restriktionen, Urlaube, Krankenstände, Sperren und alle Limitwerte.
 

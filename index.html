@@ -68,10 +68,10 @@
         <div class="table-wrapper roster">
           <table id="rosterTable" aria-describedby="monthLabel"></table>
         </div>
-        <div class="log-panel">
-          <p class="eyebrow">Log</p>
+        <details class="log-panel">
+          <summary>Log anzeigen</summary>
           <ul id="rosterLog" class="log-list"></ul>
-        </div>
+        </details>
       </section>
 
       <section class="panel admin" data-screen="employees" hidden>
@@ -131,18 +131,21 @@
             <div class="vacation-controls">
               <label>Von<input type="date" id="sickStart"></label>
               <label>Bis<input type="date" id="sickEnd"></label>
-              <label class="checkbox inline">
-                <input type="checkbox" id="sickConfirmed"> Krankmeldung erhalten
-              </label>
               <button type="button" id="addSick" class="ghost">Krankenstand hinzufügen</button>
             </div>
             <ul id="sickList" class="vacation-list"></ul>
           </div>
-          <div class="list" id="employeeList" aria-live="polite"></div>
-          <div class="log-panel">
-            <p class="eyebrow">Log</p>
-            <ul id="employeesLog" class="log-list"></ul>
-          </div>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Übersicht</p>
+              <h3>Gespeicherte Mitarbeiter</h3>
+            </div>
+            <div class="list" id="employeeList" aria-live="polite"></div>
+            <details class="log-panel">
+              <summary>Log anzeigen</summary>
+              <ul id="employeesLog" class="log-list"></ul>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -165,11 +168,17 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <div class="list" id="serviceList" aria-live="polite"></div>
-          <div class="log-panel">
-            <p class="eyebrow">Log</p>
-            <ul id="servicesLog" class="log-list"></ul>
-          </div>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Übersicht</p>
+              <h3>Gespeicherte Dienste</h3>
+            </div>
+            <div class="list" id="serviceList" aria-live="polite"></div>
+            <details class="log-panel">
+              <summary>Log anzeigen</summary>
+              <ul id="servicesLog" class="log-list"></ul>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -193,11 +202,17 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <div class="list" id="functionList" aria-live="polite"></div>
-          <div class="log-panel">
-            <p class="eyebrow">Log</p>
-            <ul id="functionsLog" class="log-list"></ul>
-          </div>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Übersicht</p>
+              <h3>Gespeicherte Funktionen</h3>
+            </div>
+            <div class="list" id="functionList" aria-live="polite"></div>
+            <details class="log-panel">
+              <summary>Log anzeigen</summary>
+              <ul id="functionsLog" class="log-list"></ul>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -219,11 +234,17 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <div class="list" id="employmentList" aria-live="polite"></div>
-          <div class="log-panel">
-            <p class="eyebrow">Log</p>
-            <ul id="employmentLog" class="log-list"></ul>
-          </div>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Übersicht</p>
+              <h3>Gespeicherte Anstellungsverhältnisse</h3>
+            </div>
+            <div class="list" id="employmentList" aria-live="polite"></div>
+            <details class="log-panel">
+              <summary>Log anzeigen</summary>
+              <ul id="employmentLog" class="log-list"></ul>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -311,11 +332,17 @@
               <button type="submit" class="primary">Regeln speichern</button>
             </div>
           </form>
-          <div class="list" id="rulesSummary" aria-live="polite"></div>
-          <div class="log-panel">
-            <p class="eyebrow">Log</p>
-            <ul id="rulesLog" class="log-list"></ul>
-          </div>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Übersicht</p>
+              <h3>Regelzusammenfassung</h3>
+            </div>
+            <div class="list" id="rulesSummary" aria-live="polite"></div>
+            <details class="log-panel">
+              <summary>Log anzeigen</summary>
+              <ul id="rulesLog" class="log-list"></ul>
+            </details>
+          </section>
         </div>
       </section>
     </div>
