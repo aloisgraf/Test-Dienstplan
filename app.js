@@ -6,171 +6,36 @@ const STORAGE_KEYS = {
   rules: 'dienstplan_rules',
   assignments: 'dienstplan_assignments',
   locks: 'dienstplan_locks',
-  groups: 'dienstplan_groups',
-  layout: 'dienstplan_layout',
-  logs: 'dienstplan_logs',
-  vacationLimits: 'dienstplan_vacation_limits',
-};
-
-const STORAGE_FILE_NAME = 'dienstplan_daten.json';
-const THEME_STORAGE_KEY = 'dienstplan_theme';
-
-const uuid = () => {
-  const hasCrypto = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
-  return hasCrypto ? crypto.randomUUID() : `id-${Math.random().toString(16).slice(2)}-${Date.now()}`;
 };
 
 const clone = (value) =>
   typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 
 const DEFAULT_EMPLOYMENT = [
-  { id: uuid(), percent: 100, hours: 173 },
-  { id: uuid(), percent: 80, hours: 138 },
-  { id: uuid(), percent: 50, hours: 86 },
+  { id: crypto.randomUUID(), percent: 100, hours: 173 },
+  { id: crypto.randomUUID(), percent: 80, hours: 138 },
+  { id: crypto.randomUUID(), percent: 50, hours: 86 },
 ];
 
 const DEFAULT_SERVICES = [
-  { id: uuid(), name: 'NCN', start: '19:00', end: '07:00', isNight: true },
-  { id: uuid(), name: 'NdN', start: '19:00', end: '07:00', isNight: true },
-  { id: uuid(), name: 'ND1', start: '07:00', end: '19:00', isNight: false },
-  { id: uuid(), name: 'C1', start: '07:00', end: '19:00', isNight: false },
+  { id: crypto.randomUUID(), name: 'NCN', start: '19:00', end: '07:00' },
+  { id: crypto.randomUUID(), name: 'NdN', start: '19:00', end: '07:00' },
+  { id: crypto.randomUUID(), name: 'ND1', start: '07:00', end: '19:00' },
+  { id: crypto.randomUUID(), name: 'C1', start: '07:00', end: '19:00' },
 ];
 
 const DEFAULT_FUNCTIONS = (services) => [
-  { id: uuid(), name: 'Disponent*in', serviceIds: services.filter((s) => s.name.toLowerCase().includes('d')).map((s) => s.id) },
-  { id: uuid(), name: 'Calltaker', serviceIds: services.filter((s) => s.name.toLowerCase().includes('c')).map((s) => s.id) },
+  { id: crypto.randomUUID(), name: 'Disponent*in', serviceIds: services.filter((s) => s.name.toLowerCase().includes('d')).map((s) => s.id) },
+  { id: crypto.randomUUID(), name: 'Calltaker', serviceIds: services.filter((s) => s.name.toLowerCase().includes('c')).map((s) => s.id) },
 ];
-
-const VACATION_TYPES = {
-  vacation: { label: 'U', name: 'Urlaub', clearsAssignments: true, usesDailyHours: true, requiresReason: false, showService: false },
-  special: {
-    label: 'SU',
-    name: 'Sonderurlaub',
-    clearsAssignments: true,
-    usesDailyHours: true,
-    requiresReason: true,
-    showService: false,
-  },
-  special2: {
-    label: 'SU2',
-    name: 'Sonderurlaub 2',
-    clearsAssignments: false,
-    usesDailyHours: false,
-    requiresReason: true,
-    showService: true,
-  },
-};
-
-const SICK_TYPES = {
-  sick: { label: 'K', name: 'Krankenstand', clearsAssignments: true, usesDailyHours: true, showService: false },
-  care: { label: 'P', name: 'Pflegeurlaub', clearsAssignments: true, usesDailyHours: true, showService: false },
-  care2: { label: 'P2', name: 'Pflegeurlaub 2', clearsAssignments: false, usesDailyHours: false, showService: true },
-};
 
 const DEFAULT_EMPLOYEES = (employment, functions) => [
-  {
-    id: uuid(),
-    firstName: 'Alex',
-    lastName: 'Huber',
-    personnelNumber: '1001',
-    birthday: '1988-05-12',
-    employmentPercent: employment[0].id,
-    employmentHours: employment[0].id,
-    functionId: functions[0].id,
-    vacationDays: 25,
-    vacations: [],
-    sickLeaves: [],
-    groupId: null,
-    nightAllowed: true,
-    rkt: false,
-    holidayFactor: 0,
-    dailyWorkHours: 8,
-    hireDate: '2023-01-01',
-    endDate: '',
-    doubleNights: false,
-  },
-  {
-    id: uuid(),
-    firstName: 'Bianca',
-    lastName: 'Mayr',
-    personnelNumber: '1002',
-    birthday: '1990-09-02',
-    employmentPercent: employment[1].id,
-    employmentHours: employment[1].id,
-    functionId: functions[1].id,
-    vacationDays: 25,
-    vacations: [],
-    sickLeaves: [],
-    groupId: null,
-    nightAllowed: true,
-    rkt: true,
-    holidayFactor: 0,
-    dailyWorkHours: 8,
-    hireDate: '2023-01-01',
-    endDate: '',
-    doubleNights: false,
-  },
-  {
-    id: uuid(),
-    firstName: 'Chris',
-    lastName: 'Lenz',
-    personnelNumber: '1003',
-    birthday: '1992-03-21',
-    employmentPercent: employment[2].id,
-    employmentHours: employment[2].id,
-    functionId: functions[0].id,
-    vacationDays: 25,
-    vacations: [],
-    sickLeaves: [],
-    groupId: null,
-    nightAllowed: false,
-    rkt: false,
-    holidayFactor: 0,
-    dailyWorkHours: 8,
-    hireDate: '2023-01-01',
-    endDate: '',
-    doubleNights: false,
-  },
+  { id: crypto.randomUUID(), firstName: 'Alex', lastName: 'Huber', personnelNumber: '1001', birthday: '1988-05-12', employmentPercent: employment[0].id, employmentHours: employment[0].id, functionId: functions[0].id, nightAllowed: true, rkt: false },
+  { id: crypto.randomUUID(), firstName: 'Bianca', lastName: 'Mayr', personnelNumber: '1002', birthday: '1990-09-02', employmentPercent: employment[1].id, employmentHours: employment[1].id, functionId: functions[1].id, nightAllowed: true, rkt: true },
+  { id: crypto.randomUUID(), firstName: 'Chris', lastName: 'Lenz', personnelNumber: '1003', birthday: '1992-03-21', employmentPercent: employment[2].id, employmentHours: employment[2].id, functionId: functions[0].id, nightAllowed: false, rkt: false },
 ];
 
-const DEFAULT_LOGS = {
-  roster: [],
-  employees: [],
-  services: [],
-  functions: [],
-  employment: [],
-  rules: [],
-  vacationLimits: [],
-  tickets: [],
-};
-
-const defaultWeekdayServices = () => ({
-  0: [],
-  1: [],
-  2: [],
-  3: [],
-  4: [],
-  5: [],
-  6: [],
-  holiday: [],
-});
-
-const createWeekdayRule = (overrides = {}) => ({
-  id: uuid(),
-  start: '',
-  end: '',
-  services: defaultWeekdayServices(),
-  ...overrides,
-});
-
-const DEFAULT_RULES = {
-  restDays: 1,
-  maxHoursWeek: 40,
-  minFreeWeekends: 0,
-  maxNights: 8,
-  vacationDefault: 2,
-  weekdayRules: [createWeekdayRule()],
-};
+const DEFAULT_RULES = { restDays: 1, maxHoursWeek: 40, maxHoursMonth: 173, maxWeekendDays: 6, maxNights: 8 };
 
 const SALZBURG_HOLIDAYS = {
   // month-day: label
@@ -189,19 +54,7 @@ const SALZBURG_HOLIDAYS = {
   '12-26': 'Stefanitag',
 };
 
-const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '0', 'holiday'];
-const WEEKDAY_LABELS = {
-  0: 'Sonntag',
-  1: 'Montag',
-  2: 'Dienstag',
-  3: 'Mittwoch',
-  4: 'Donnerstag',
-  5: 'Freitag',
-  6: 'Samstag',
-  holiday: 'Feiertage',
-};
-
-const menuButtons = document.querySelectorAll('.main-menu button[data-target]');
+const menuButtons = document.querySelectorAll('.main-menu button');
 const screens = document.querySelectorAll('[data-screen]');
 const employeeForm = document.getElementById('employeeForm');
 const serviceForm = document.getElementById('serviceForm');
@@ -221,110 +74,26 @@ const employeePicker = document.getElementById('employeePicker');
 const servicePicker = document.getElementById('servicePicker');
 const functionPicker = document.getElementById('functionPicker');
 const employmentPicker = document.getElementById('employmentPicker');
-const rosterPanel = document.querySelector('[data-screen="roster"]');
 const rosterTable = document.getElementById('rosterTable');
 const monthLabel = document.getElementById('monthLabel');
 const prevMonthBtn = document.getElementById('prevMonth');
 const nextMonthBtn = document.getElementById('nextMonth');
 const generateBtn = document.getElementById('generatePlan');
-const printPlanBtn = document.getElementById('printPlan');
-const saveFileBtn = document.getElementById('saveFile');
-const loadFileBtn = document.getElementById('loadFile');
-const loadFileInput = document.getElementById('loadFileInput');
-const weekdaySelects = document.querySelectorAll('[data-weekday-select]');
-const weekdayFields = document.querySelectorAll('[data-weekday-field]');
-const createGroupBtn = document.getElementById('createGroupBtn');
-const assignGroupBtn = document.getElementById('assignGroupBtn');
-const removeGroupBtn = document.getElementById('removeGroupBtn');
-const groupSelect = document.getElementById('groupSelect');
-const rowToolsMenu = document.getElementById('rowToolsMenu');
-const vacationPanel = document.getElementById('vacationPanel');
-const vacationBalance = document.getElementById('vacationBalance');
-const vacationStartInput = document.getElementById('vacationStart');
-const vacationEndInput = document.getElementById('vacationEnd');
-const addVacationBtn = document.getElementById('addVacation');
-const vacationList = document.getElementById('vacationList');
-const vacationTypeSelect = document.getElementById('vacationType');
-const vacationReasonInput = document.getElementById('vacationReason');
-const vacationReasonWrapper = document.getElementById('vacationReasonWrapper');
-const sickPanel = document.getElementById('sickPanel');
-const sickStartInput = document.getElementById('sickStart');
-const sickEndInput = document.getElementById('sickEnd');
-const addSickBtn = document.getElementById('addSick');
-const sickList = document.getElementById('sickList');
-const sickTypeSelect = document.getElementById('sickType');
-const rosterModeButtons = document.querySelectorAll('[data-roster-mode]');
-const serviceLegend = document.getElementById('serviceLegend');
-const themeToggle = document.getElementById('themeToggle');
-const openSickList = document.getElementById('openSickList');
-const vacationLimitForm = document.getElementById('vacationLimitForm');
-const vacationLimitStart = document.getElementById('vacationLimitStart');
-const vacationLimitEnd = document.getElementById('vacationLimitEnd');
-const vacationLimitValue = document.getElementById('vacationLimitValue');
-const vacationLimitList = document.getElementById('vacationLimitList');
-const vacationChart = document.getElementById('vacationChart');
-const ticketLog = document.getElementById('ticketLog');
-const vacationDefaultInput = document.getElementById('vacationDefault');
-const weekdayRangeStart = document.getElementById('weekdayRangeStart');
-const weekdayRangeEnd = document.getElementById('weekdayRangeEnd');
-const weekdayHistory = document.getElementById('weekdayHistory');
-const menuEmployeeAlert = document.getElementById('menuEmployeeAlert');
-const openSickIndicator = document.getElementById('openSickIndicator');
-const logElements = {
-  roster: document.getElementById('rosterLog'),
-  tickets: ticketLog,
-};
 
 let state = loadState();
-state.vacationLimits = Array.isArray(state.vacationLimits) ? state.vacationLimits : [];
 let currentMonth = new Date();
 currentMonth.setDate(1);
 const editing = { employee: null, service: null, function: null, employment: null };
-let weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
-let selectedRows = new Set();
-let draggingRowId = null;
-let rosterMode = 'edit';
-let modeBeforePrint = null;
-let currentTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
 
 function loadState() {
   const employment = loadArray(STORAGE_KEYS.employmentTypes, DEFAULT_EMPLOYMENT);
   const services = loadArray(STORAGE_KEYS.services, DEFAULT_SERVICES);
   const functions = loadArray(STORAGE_KEYS.functions, DEFAULT_FUNCTIONS(services));
-  const employeesRaw = loadArray(STORAGE_KEYS.employees, DEFAULT_EMPLOYEES(employment, functions));
-  const storedRules = loadValue(STORAGE_KEYS.rules, DEFAULT_RULES);
-  const rules = {
-    ...DEFAULT_RULES,
-    ...storedRules,
-  };
-  rules.minFreeWeekends =
-    storedRules?.minFreeWeekends ?? storedRules?.maxWeekendDays ?? DEFAULT_RULES.minFreeWeekends;
-  rules.weekdayRules = normalizeWeekdayRules(storedRules, services);
-  rules.vacationDefault = Number.isFinite(Number(rules.vacationDefault))
-    ? Number(rules.vacationDefault)
-    : DEFAULT_RULES.vacationDefault;
+  const employees = loadArray(STORAGE_KEYS.employees, DEFAULT_EMPLOYEES(employment, functions));
+  const rules = loadValue(STORAGE_KEYS.rules, DEFAULT_RULES);
   const assignments = loadValue(STORAGE_KEYS.assignments, {});
   const locks = loadValue(STORAGE_KEYS.locks, {});
-  const groups = loadArray(STORAGE_KEYS.groups, []);
-  const sanitizedGroups = sanitizeGroups(groups);
-  const employees = normalizeEmployees(employeesRaw, sanitizedGroups);
-  const layout = ensureLayout(loadValue(STORAGE_KEYS.layout, null), employees);
-  const logs = ensureLogs(loadValue(STORAGE_KEYS.logs, DEFAULT_LOGS));
-  const vacationLimits = normalizeVacationLimits(loadValue(STORAGE_KEYS.vacationLimits, []));
-  cleanEmployeeGroups(employees, sanitizedGroups);
-  return {
-    employment,
-    services,
-    functions,
-    employees,
-    rules,
-    assignments,
-    locks,
-    groups: sanitizedGroups,
-    layout,
-    logs,
-    vacationLimits,
-  };
+  return { employment, services, functions, employees, rules, assignments, locks };
 }
 
 function loadArray(key, fallback) {
@@ -356,228 +125,6 @@ function loadValue(key, fallback) {
   }
 }
 
-function sanitizeGroups(groups = []) {
-  if (!Array.isArray(groups)) return [];
-  return groups
-    .map((group) => {
-      if (!group || !group.id) return null;
-      return { id: group.id, name: group.name || 'Gruppe' };
-    })
-    .filter(Boolean);
-}
-
-function normalizeEmployees(employees = [], groups = []) {
-  return employees.map((emp) => {
-    const vacationDays = Number(emp.vacationDays);
-    const holidayFactor = Number(emp.holidayFactor);
-    const dailyWorkHours = Number(emp.dailyWorkHours);
-    const hireDate = parseISODate(emp.hireDate) ? emp.hireDate : '';
-    const endDate = parseISODate(emp.endDate) ? emp.endDate : '';
-    const normalized = {
-      ...emp,
-      vacationDays: Number.isFinite(vacationDays) ? vacationDays : 0,
-      vacations: normalizeVacationEntries(emp.vacations),
-      sickLeaves: normalizeSickEntries(emp.sickLeaves),
-      holidayFactor: Number.isFinite(holidayFactor) ? holidayFactor : 0,
-      dailyWorkHours: Number.isFinite(dailyWorkHours) ? dailyWorkHours : 0,
-      groupId: emp.groupId && groups.some((g) => g.id === emp.groupId) ? emp.groupId : null,
-      hireDate,
-      endDate,
-      doubleNights: !!emp.doubleNights,
-    };
-    return normalized;
-  });
-}
-
-function sanitizeDateValue(value) {
-  const date = parseISODate(value);
-  return date ? formatISODate(date) : '';
-}
-
-function normalizeWeekdayRules(rawRules = {}, services = []) {
-  const list = Array.isArray(rawRules?.weekdayRules) && rawRules.weekdayRules.length
-    ? rawRules.weekdayRules
-    : [{ services: rawRules?.weekdayServices || defaultWeekdayServices(), start: '', end: '' }];
-  const normalized = list
-    .map((entry) => ({
-      id: entry.id || uuid(),
-      start: sanitizeDateValue(entry.start),
-      end: sanitizeDateValue(entry.end),
-      services: ensureWeekdaySelections(entry.services || {}, services),
-    }))
-    .filter((entry) => !!entry);
-  return normalized.length ? normalized : [createWeekdayRule({ services: ensureWeekdaySelections({}, services) })];
-}
-
-function normalizeVacationLimits(raw) {
-  if (Array.isArray(raw)) {
-    return raw
-      .map((entry) => {
-        const start = sanitizeDateValue(entry.start);
-        const end = sanitizeDateValue(entry.end || entry.start);
-        const limit = Number(entry.limit);
-        if (!start || !Number.isFinite(limit)) return null;
-        return { id: entry.id || uuid(), start, end: end || start, limit };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.start.localeCompare(b.start));
-  }
-  if (raw && typeof raw === 'object') {
-    return Object.entries(raw)
-      .map(([dateStr, value]) => {
-        const start = sanitizeDateValue(dateStr);
-        const limit = Number(value);
-        if (!start || !Number.isFinite(limit)) return null;
-        return { id: uuid(), start, end: start, limit };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.start.localeCompare(b.start));
-  }
-  return [];
-}
-
-function normalizeVacationEntries(entries = []) {
-  if (!Array.isArray(entries)) return [];
-  return entries
-    .map((entry) => {
-      const start = parseISODate(entry?.start);
-      const end = parseISODate(entry?.end);
-      if (!start || !end) return null;
-      const ordered = start <= end ? { start, end } : { start: end, end: start };
-      return {
-        id: entry.id || uuid(),
-        start: formatISODate(ordered.start),
-        end: formatISODate(ordered.end),
-        type: VACATION_TYPES[entry?.type] ? entry.type : 'vacation',
-        reason: typeof entry?.reason === 'string' ? entry.reason : '',
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.start.localeCompare(b.start));
-}
-
-function normalizeSickEntries(entries = []) {
-  if (!Array.isArray(entries)) return [];
-  return entries
-    .map((entry) => {
-      const start = parseISODate(entry?.start);
-      const end = parseISODate(entry?.end);
-      if (!start || !end) return null;
-      const ordered = start <= end ? { start, end } : { start: end, end: start };
-      return {
-        id: entry.id || uuid(),
-        start: formatISODate(ordered.start),
-        end: formatISODate(ordered.end),
-        confirmed: !!entry.confirmed,
-        kind: SICK_TYPES[entry?.kind] ? entry.kind : 'sick',
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.start.localeCompare(b.start));
-}
-
-function ensureLayout(layout, employees) {
-  const ids = employees.map((emp) => emp.id);
-  if (!layout || !Array.isArray(layout.order)) {
-    return { order: ids.slice(), generatorPivot: 0 };
-  }
-  const order = layout.order.filter((id) => ids.includes(id));
-  ids.forEach((id) => {
-    if (!order.includes(id)) order.push(id);
-  });
-  const generatorPivot = Number.isFinite(layout.generatorPivot) ? layout.generatorPivot : 0;
-  return { order, generatorPivot };
-}
-
-function ensureLogs(logs = DEFAULT_LOGS) {
-  const target = {};
-  Object.keys(DEFAULT_LOGS).forEach((key) => {
-    const list = Array.isArray(logs?.[key]) ? logs[key] : [];
-    target[key] = list
-      .filter((entry) => entry && typeof entry.message === 'string')
-      .map((entry) => ({
-        id: entry.id || uuid(),
-        message: entry.message,
-        timestamp: Number(entry.timestamp) || Date.now(),
-      }))
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 200);
-  });
-  return target;
-}
-
-function cleanEmployeeGroups(employees, groups) {
-  const valid = new Set(groups.map((g) => g.id));
-  employees.forEach((emp) => {
-    if (emp.groupId && !valid.has(emp.groupId)) {
-      emp.groupId = null;
-    }
-  });
-}
-
-function ensureEmployeeInLayout(empId) {
-  if (!state.layout.order.includes(empId)) {
-    state.layout.order.push(empId);
-  }
-}
-
-function getOrderedEmployees() {
-  const order = state.layout?.order || [];
-  const map = new Map(state.employees.map((emp) => [emp.id, emp]));
-  const result = [];
-  order.forEach((id) => {
-    if (map.has(id)) result.push(map.get(id));
-  });
-  state.employees.forEach((emp) => {
-    if (!order.includes(emp.id)) {
-      ensureEmployeeInLayout(emp.id);
-      result.push(emp);
-    }
-  });
-  return result;
-}
-
-function cleanSelectedRows() {
-  const ids = new Set(state.employees.map((emp) => emp.id));
-  selectedRows.forEach((id) => {
-    if (!ids.has(id)) selectedRows.delete(id);
-  });
-}
-
-function updateGroupPicker() {
-  if (!groupSelect) return;
-  const previous = groupSelect.value;
-  const options = state.groups
-    .map((group) => `<option value="${group.id}">${group.name}</option>`)
-    .join('');
-  groupSelect.innerHTML = '<option value="">Gruppe wählen…</option>' + options;
-  if (previous && state.groups.some((g) => g.id === previous)) {
-    groupSelect.value = previous;
-  }
-}
-
-function selectedRowsHaveGroup() {
-  return Array.from(selectedRows).some((id) => {
-    const emp = state.employees.find((e) => e.id === id);
-    return !!emp?.groupId;
-  });
-}
-
-function updateRowToolStates() {
-  if (!createGroupBtn) return;
-  const hasSelection = selectedRows.size > 0;
-  createGroupBtn.disabled = !hasSelection;
-  assignGroupBtn.disabled = !hasSelection || !groupSelect.value;
-  removeGroupBtn.disabled = !hasSelection || !selectedRowsHaveGroup();
-  if (rowToolsMenu) {
-    if (hasSelection) {
-      rowToolsMenu.removeAttribute('hidden');
-    } else {
-      rowToolsMenu.setAttribute('hidden', '');
-    }
-  }
-}
-
 function saveState() {
   localStorage.setItem(STORAGE_KEYS.employees, JSON.stringify(state.employees));
   localStorage.setItem(STORAGE_KEYS.services, JSON.stringify(state.services));
@@ -586,140 +133,14 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.rules, JSON.stringify(state.rules));
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(state.assignments));
   localStorage.setItem(STORAGE_KEYS.locks, JSON.stringify(state.locks));
-  localStorage.setItem(STORAGE_KEYS.groups, JSON.stringify(state.groups));
-  localStorage.setItem(STORAGE_KEYS.layout, JSON.stringify(state.layout));
-  localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(state.logs));
-  localStorage.setItem(STORAGE_KEYS.vacationLimits, JSON.stringify(state.vacationLimits));
-}
-
-function downloadStateFile() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = STORAGE_FILE_NAME;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importState(json) {
-  try {
-    const parsed = JSON.parse(json);
-    const parsedGroups = sanitizeGroups(parsed.groups ?? []);
-    const employees = normalizeEmployees(parsed.employees ?? [], parsedGroups);
-    const services = parsed.services ?? [];
-    const parsedRules = parsed.rules || {};
-    const rules = {
-      ...DEFAULT_RULES,
-      ...parsedRules,
-    };
-    rules.minFreeWeekends =
-      parsedRules.minFreeWeekends ?? parsedRules.maxWeekendDays ?? DEFAULT_RULES.minFreeWeekends;
-    rules.weekdayRules = normalizeWeekdayRules(parsedRules, services);
-    rules.vacationDefault = Number.isFinite(Number(rules.vacationDefault))
-      ? Number(rules.vacationDefault)
-      : DEFAULT_RULES.vacationDefault;
-    state = {
-      employees,
-      services,
-      functions: parsed.functions ?? [],
-      employment: parsed.employment ?? [],
-      rules,
-      assignments: parsed.assignments ?? {},
-      locks: parsed.locks ?? {},
-      groups: parsedGroups,
-      layout: ensureLayout(parsed.layout, employees),
-      logs: ensureLogs(parsed.logs ?? DEFAULT_LOGS),
-      vacationLimits: normalizeVacationLimits(parsed.vacationLimits),
-    };
-    weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
-    cleanEmployeeGroups(state.employees, state.groups);
-    editing.employee = null;
-    editing.service = null;
-    editing.function = null;
-    editing.employment = null;
-    selectedRows = new Set();
-    employeeForm.reset();
-    serviceForm.reset();
-    functionForm.reset();
-    employmentForm.reset();
-    renderVacationPanel(null);
-    renderSickPanel(null);
-    saveState();
-    updateDropdowns();
-    renderEmployees();
-    renderServices();
-    renderFunctions();
-    renderEmployment();
-    renderRules();
-    renderRoster();
-    renderLogs();
-  } catch (e) {
-    alert('Konnte Datei nicht laden. Bitte prüfen, ob es eine gültige JSON-Datei ist.');
-    console.error(e);
-  }
 }
 
 function formatName(emp) {
   return `${emp.firstName} ${emp.lastName}`;
 }
 
-function formatLogTimestamp(ts) {
-  const date = new Date(ts);
-  return date.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function appendLog(section, message, entityId) {
-  if (!state.logs[section]) state.logs[section] = [];
-  state.logs[section].unshift({ id: uuid(), message, timestamp: Date.now(), entityId: entityId || null });
-  state.logs[section] = state.logs[section].slice(0, 200);
-  renderLogs(section);
-}
-
-function renderLogs(section) {
-  const sections = section ? [section] : Object.keys(logElements);
-  sections.forEach((key) => {
-    const target = logElements[key];
-    if (!target) return;
-    const entries = state.logs?.[key] || [];
-    if (!entries.length) {
-      target.innerHTML = '<li class="muted">Noch keine Einträge</li>';
-      return;
-    }
-    target.innerHTML = entries
-      .map((entry) => `<li><strong>${formatLogTimestamp(entry.timestamp)}</strong><span>${entry.message}</span></li>`)
-      .join('');
-  });
-}
-
-function logsFor(section, entityId) {
-  const entries = state.logs?.[section] || [];
-  if (!entityId) return entries;
-  return entries.filter((entry) => entry.entityId === entityId);
-}
-
 function getMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function monthKeyToDate(key) {
-  if (typeof key !== 'string') return null;
-  const [yearStr, monthStr] = key.split('-');
-  const year = Number(yearStr);
-  const monthIndex = Number(monthStr) - 1;
-  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) return null;
-  return new Date(year, monthIndex, 1);
-}
-
-function parseISODate(value) {
-  if (!value || typeof value !== 'string') return null;
-  const [year, month, day] = value.split('-').map(Number);
-  if (![year, month, day].every((num) => Number.isFinite(num))) return null;
-  return new Date(year, month - 1, day);
-}
-
-function formatISODate(date) {
-  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
 }
 
 function daysInMonth(date) {
@@ -732,10 +153,6 @@ function weekdayLabel(date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long' });
 }
 
-function weekdayLabelFromKey(key) {
-  return WEEKDAY_LABELS[key] || key;
-}
-
 function isWeekend(date) {
   const w = date.getDay();
   return w === 0 || w === 6;
@@ -744,28 +161,6 @@ function isWeekend(date) {
 function isHoliday(date) {
   const key = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return SALZBURG_HOLIDAYS[key];
-}
-
-function isDateWithinRange(date, startStr, endStr) {
-  const start = parseISODate(startStr);
-  const end = parseISODate(endStr);
-  if (start && date < start) return false;
-  if (end && date > end) return false;
-  return true;
-}
-
-function findWeekdayRuleForDate(date) {
-  const rules = state.rules?.weekdayRules || [];
-  if (!rules.length) return null;
-  const matches = rules.filter((rule) => isDateWithinRange(date, rule.start, rule.end));
-  if (matches.length) {
-    return matches.sort((a, b) => (a.start || '').localeCompare(b.start || ''))[matches.length - 1];
-  }
-  return rules.slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''))[rules.length - 1];
-}
-
-function currentWeekdayRule() {
-  return findWeekdayRuleForDate(currentMonth) || state.rules?.weekdayRules?.[0] || null;
 }
 
 function parseTime(timeString) {
@@ -778,425 +173,6 @@ function serviceDuration(service) {
   const end = parseTime(service.end);
   const duration = end >= start ? end - start : 24 - start + end;
   return Math.max(duration, 0);
-}
-
-function formatHours(value) {
-  if (value === undefined || value === null || Number.isNaN(value)) return '–';
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
-}
-
-const HTML_ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
-HTML_ESCAPE['"'] = '&quot;';
-HTML_ESCAPE["'"] = '&#39;';
-
-function escapeHtml(value) {
-  if (value === undefined || value === null) return '';
-  return String(value).replace(/[&<>"']/g, (char) => HTML_ESCAPE[char] || char);
-}
-
-function vacationBreakdown(startStr, endStr) {
-  const start = parseISODate(startStr);
-  const end = parseISODate(endStr);
-  if (!start || !end) return {};
-  const begin = start <= end ? start : end;
-  const finish = start <= end ? end : start;
-  const cursor = new Date(begin.getTime());
-  const perYear = {};
-  while (cursor <= finish) {
-    const year = cursor.getFullYear();
-    perYear[year] = (perYear[year] || 0) + 1;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return perYear;
-}
-
-function vacationUsageByYear(emp) {
-  const usage = {};
-  (emp.vacations || []).forEach((entry) => {
-    const breakdown = vacationBreakdown(entry.start, entry.end);
-    Object.entries(breakdown).forEach(([year, days]) => {
-      usage[year] = (usage[year] || 0) + days;
-    });
-  });
-  return usage;
-}
-
-function remainingVacationDays(emp, year) {
-  const { stats } = vacationStats(emp);
-  const entry = stats.find((s) => s.year === year);
-  if (!entry) return Number(emp.vacationDays) || 0;
-  if (typeof entry.remainingWithCarry === 'number') return entry.remainingWithCarry;
-  return entry.remaining;
-}
-
-function vacationStats(emp) {
-  const allowance = Number(emp.vacationDays) || 0;
-  const usage = vacationUsageByYear(emp);
-  const currentYear = currentMonth.getFullYear();
-  const nextYear = currentYear + 1;
-  const summaryYears = new Set([currentYear, nextYear]);
-  Object.keys(usage).forEach((year) => summaryYears.add(Number(year)));
-  let stats = Array.from(summaryYears)
-    .filter((year) => Number.isFinite(year))
-    .map((year) => ({
-      year,
-      used: usage[year] || 0,
-      remaining: Math.max(allowance - (usage[year] || 0), 0),
-    }));
-  const ensureStat = (year) => {
-    let entry = stats.find((s) => s.year === year);
-    if (!entry) {
-      entry = { year, used: usage[year] || 0, remaining: Math.max(allowance - (usage[year] || 0), 0) };
-      stats.push(entry);
-    }
-    return entry;
-  };
-  const currentStat = ensureStat(currentYear);
-  const nextStat = ensureStat(nextYear);
-  const carry = Math.max(currentStat.remaining, 0);
-  nextStat.remainingWithCarry = nextStat.remaining + carry;
-  nextStat.carry = carry;
-  stats = stats.sort((a, b) => a.year - b.year);
-  return { allowance, stats };
-}
-
-function vacationBalanceText(emp) {
-  const { allowance, stats } = vacationStats(emp);
-  const base = `Anspruch: ${allowance} Tage`;
-  const rest = stats.map((entry) => {
-    const remaining = entry.remainingWithCarry ?? entry.remaining;
-    const carryText = entry.carry ? `, inkl. ${entry.carry} Tage Übertrag` : '';
-    return `${entry.year}: ${remaining} Tage frei (${entry.used} verplant${carryText})`;
-  });
-  return [base].concat(rest).join(' · ');
-}
-
-function employeeVacationLine(emp) {
-  const { allowance, stats } = vacationStats(emp);
-  const currentYear = currentMonth.getFullYear();
-  const nextYear = currentYear + 1;
-  const current =
-    stats.find((entry) => entry.year === currentYear) ||
-    { year: currentYear, remaining: allowance, used: 0 };
-  const next =
-    stats.find((entry) => entry.year === nextYear) ||
-    { year: nextYear, remaining: allowance, used: 0, remainingWithCarry: allowance + Math.max(current.remaining, 0) };
-  const nextRemaining = next.remainingWithCarry ?? next.remaining;
-  const carryText = next.carry ? `, inkl. ${next.carry} Übertrag` : '';
-  return `Anspruch: ${allowance} Tage · ${currentYear}: ${current.remaining} Tage frei (${current.used} verplant) · ${nextYear}: ${nextRemaining} Tage frei (${next.used} verplant${carryText})`;
-}
-
-function calculateVacationDays(startStr, endStr) {
-  const breakdown = vacationBreakdown(startStr, endStr);
-  return Object.values(breakdown).reduce((sum, days) => sum + days, 0);
-}
-
-function formatVacationRange(entry) {
-  const start = parseISODate(entry.start);
-  const end = parseISODate(entry.end);
-  if (!start || !end) return '';
-  const formatter = new Intl.DateTimeFormat('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  if (entry.start === entry.end) return formatter.format(start);
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
-}
-
-function formatShortDate(value) {
-  const date = parseISODate(value);
-  if (!date) return '';
-  return date.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function findVacationOnDate(emp, date) {
-  if (!emp.vacations?.length) return null;
-  return emp.vacations.find((entry) => {
-    const start = parseISODate(entry.start);
-    const end = parseISODate(entry.end);
-    if (!start || !end) return false;
-    const begin = start <= end ? start : end;
-    const finish = start <= end ? end : start;
-    return date >= begin && date <= finish;
-  });
-}
-
-function findSickOnDate(emp, date) {
-  if (!emp.sickLeaves?.length) return null;
-  return emp.sickLeaves.find((entry) => {
-    const start = parseISODate(entry.start);
-    const end = parseISODate(entry.end);
-    if (!start || !end) return false;
-    const begin = start <= end ? start : end;
-    const finish = start <= end ? end : start;
-    return date >= begin && date <= finish;
-  });
-}
-
-function isEmployeeActiveOnDate(emp, date) {
-  if (!emp) return false;
-  const hire = parseISODate(emp.hireDate);
-  const exit = parseISODate(emp.endDate);
-  if (hire && date < hire) return false;
-  if (exit && date > exit) return false;
-  return true;
-}
-
-function isEmployeeActiveInMonth(emp, monthDate) {
-  const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-  const hire = parseISODate(emp.hireDate);
-  const exit = parseISODate(emp.endDate);
-  if (hire && hire > end) return false;
-  if (exit && exit < start) return false;
-  return true;
-}
-
-function isEmployeeFullMonth(emp, monthDate) {
-  if (!isEmployeeActiveInMonth(emp, monthDate)) return false;
-  const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-  const hire = parseISODate(emp.hireDate);
-  const exit = parseISODate(emp.endDate);
-  if (hire && hire > start) return false;
-  if (exit && exit < end) return false;
-  return true;
-}
-
-function activeDaysInMonth(emp, monthDate) {
-  if (!isEmployeeActiveInMonth(emp, monthDate)) return 0;
-  const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-  const hire = parseISODate(emp.hireDate);
-  const exit = parseISODate(emp.endDate);
-  const begin = hire && hire > start ? hire : start;
-  const finish = exit && exit < end ? exit : end;
-  const diff = finish.getTime() - begin.getTime();
-  return Math.floor(diff / (24 * 60 * 60 * 1000)) + 1;
-}
-
-function monthlyTargetHours(emp, monthDate) {
-  const employment = state.employment.find((e) => e.id === emp.employmentHours);
-  const base = Number(employment?.hours) || 0;
-  const totalDays = daysInMonth(monthDate);
-  const activeDays = activeDaysInMonth(emp, monthDate);
-  if (activeDays <= 0) return 0;
-  if (!base || activeDays >= totalDays) return base;
-  const fraction = (base * activeDays) / totalDays;
-  return Math.round(fraction * 100) / 100;
-}
-
-function expandDateRange(startStr, endStr) {
-  const start = parseISODate(startStr);
-  const end = parseISODate(endStr);
-  if (!start || !end) return [];
-  const begin = start <= end ? start : end;
-  const finish = start <= end ? end : start;
-  const cursor = new Date(begin.getTime());
-  const dates = [];
-  while (cursor <= finish) {
-    dates.push(formatISODate(cursor));
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return dates;
-}
-
-function countVacationsOnDate(date) {
-  if (!date) return 0;
-  return state.employees.filter((emp) => isEmployeeActiveOnDate(emp, date) && !!findVacationOnDate(emp, date)).length;
-}
-
-function employeesOnVacation(date) {
-  if (!date) return [];
-  return state.employees
-    .filter((emp) => isEmployeeActiveOnDate(emp, date))
-    .map((emp) => ({ emp, vacation: findVacationOnDate(emp, date) }))
-    .filter((entry) => !!entry.vacation)
-    .map(({ emp }) => formatName(emp));
-}
-
-function vacationHeaderData(date) {
-  const names = employeesOnVacation(date);
-  const limit = getVacationLimitForDate(date);
-  return {
-    names,
-    count: names.length,
-    limit,
-  };
-}
-
-function weekendKeyForDate(date) {
-  if (!isWeekend(date)) return null;
-  const saturday = date.getDay() === 6 ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);
-  if (
-    saturday.getMonth() === currentMonth.getMonth() &&
-    saturday.getFullYear() === currentMonth.getFullYear()
-  ) {
-    return `${saturday.getFullYear()}-${saturday.getMonth()}-${saturday.getDate()}`;
-  }
-  if (date.getDay() === 0) {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  }
-  return null;
-}
-
-function weekendKeyForDay(day) {
-  const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-  return weekendKeyForDate(date);
-}
-
-function workedWeekendSet(monthKey, empId) {
-  const assignments = state.assignments[monthKey]?.[empId] || {};
-  const keys = new Set();
-  Object.keys(assignments).forEach((dayStr) => {
-    const day = Number(dayStr);
-    if (!assignments[day]) return;
-    const key = weekendKeyForDay(day);
-    if (key) keys.add(key);
-  });
-  return keys;
-}
-
-function totalWeekendsInMonth(date) {
-  let count = 0;
-  const days = daysInMonth(date);
-  for (let i = 1; i <= days; i++) {
-    const d = new Date(date.getFullYear(), date.getMonth(), i);
-    if (d.getDay() === 6) count++;
-  }
-  return count;
-}
-
-function getVacationLimitForDate(date) {
-  const overrides = state.vacationLimits || [];
-  if (date) {
-    const match = overrides.find((entry) => isDateWithinRange(date, entry.start, entry.end));
-    if (match && Number.isFinite(Number(match.limit))) {
-      const limit = Number(match.limit);
-      if (limit > 0) return limit;
-      return null;
-    }
-  }
-  const fallback = Number(state.rules?.vacationDefault);
-  return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
-}
-
-function applyTheme(theme) {
-  const next = theme === 'light' ? 'light' : 'dark';
-  currentTheme = next;
-  if (typeof document !== 'undefined' && document.body) {
-    document.body.classList.toggle('light-theme', next === 'light');
-    document.body.classList.toggle('dark-theme', next !== 'light');
-  }
-  if (themeToggle) {
-    themeToggle.textContent = next === 'light' ? 'Dunkler Modus' : 'Heller Modus';
-  }
-  localStorage.setItem(THEME_STORAGE_KEY, next);
-}
-
-function usesDailyHoursForVacation(entry) {
-  const meta = VACATION_TYPES[entry?.type];
-  return meta ? meta.usesDailyHours : true;
-}
-
-function usesDailyHoursForSick(entry) {
-  const meta = SICK_TYPES[entry?.kind];
-  return meta ? meta.usesDailyHours : true;
-}
-
-function hasBirthdayOnDate(emp, date) {
-  if (!emp.birthday) return false;
-  const birthday = parseISODate(emp.birthday);
-  if (!birthday) return false;
-  return birthday.getDate() === date.getDate() && birthday.getMonth() === date.getMonth();
-}
-
-function clearAssignmentsForRange(empId, startStr, endStr, options = {}) {
-  const keepAssignments = !!options.keepAssignments;
-  const keepLocks = !!options.keepLocks;
-  const start = parseISODate(startStr);
-  const end = parseISODate(endStr);
-  if (!start || !end) return;
-  const begin = start <= end ? start : end;
-  const finish = start <= end ? end : start;
-  const cursor = new Date(begin.getTime());
-  while (cursor <= finish) {
-    const monthKey = getMonthKey(cursor);
-    const day = cursor.getDate();
-    const monthAssignments = state.assignments[monthKey];
-    const monthLocks = state.locks[monthKey];
-    if (monthAssignments && monthAssignments[empId] && !keepAssignments) {
-      delete monthAssignments[empId][day];
-      if (!Object.keys(monthAssignments[empId]).length) {
-        delete monthAssignments[empId];
-      }
-    }
-    if (monthLocks && monthLocks[empId] && !keepLocks) {
-      delete monthLocks[empId][day];
-      if (!Object.keys(monthLocks[empId]).length) {
-        delete monthLocks[empId];
-      }
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-}
-
-function ensureWeekdaySelections(source = {}, servicesList = state?.services ?? []) {
-  const cleaned = {};
-  const validIds = new Set((servicesList || []).map((s) => s.id));
-  WEEKDAY_KEYS.forEach((key) => {
-    const raw = Array.isArray(source?.[key]) ? source[key] : [];
-    cleaned[key] = raw.filter((id) => validIds.has(id));
-  });
-  return cleaned;
-}
-
-function getRequiredServiceIdsForDate(date) {
-  const rule = findWeekdayRuleForDate(date);
-  const config = rule?.services || {};
-  const holidayLabel = isHoliday(date);
-  const weekday = date.getDay();
-  let ids = [];
-  if (holidayLabel && config.holiday?.length) {
-    ids = config.holiday;
-  } else if (config[weekday]?.length) {
-    ids = config[weekday];
-  }
-  const filtered = ids.filter((id) => state.services.some((s) => s.id === id));
-  if (filtered.length) return filtered;
-  return state.services.map((s) => s.id);
-}
-
-function getRequiredServicesForDate(date) {
-  return getRequiredServiceIdsForDate(date)
-    .map((id) => state.services.find((s) => s.id === id))
-    .filter(Boolean);
-}
-
-function remainingServicesForDay(day, monthKey, date) {
-  const requiredIds = getRequiredServiceIdsForDate(date);
-  const remaining = requiredIds.slice();
-  state.employees.forEach((emp) => {
-    if (!isEmployeeActiveOnDate(emp, date)) return;
-    const assigned = state.assignments?.[monthKey]?.[emp.id]?.[day];
-    if (!assigned) return;
-    const idx = remaining.indexOf(assigned);
-    if (idx !== -1) remaining.splice(idx, 1);
-  });
-  return remaining
-    .map((id) => state.services.find((s) => s.id === id))
-    .filter(Boolean);
-}
-
-function allowedServicesForEmployee(emp, assigned) {
-  const func = state.functions.find((f) => f.id === emp.functionId);
-  const allowedIds = Array.isArray(func?.serviceIds) && func.serviceIds.length ? func.serviceIds : [];
-  const services = allowedIds.length ? state.services.filter((s) => allowedIds.includes(s.id)) : [];
-  return services
-    .filter((service) => {
-      if (!service) return false;
-      if (isNightService(service) && !emp.nightAllowed) return false;
-      return true;
-    })
-    .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true }));
 }
 
 function updateDropdowns() {
@@ -1224,733 +200,36 @@ function updateDropdowns() {
   if (prevService && state.services.some((s) => s.id === prevService)) servicePicker.value = prevService;
   if (prevFunction && state.functions.some((f) => f.id === prevFunction)) functionPicker.value = prevFunction;
   if (prevEmployment && state.employment.some((e) => e.id === prevEmployment)) employmentPicker.value = prevEmployment;
-  updateGroupPicker();
 }
 
 function renderEmployees() {
   updateDropdowns();
-  if (!employeeList) return;
-  if (!state.employees.length) {
-    employeeList.innerHTML = '<p class="muted">Noch keine Mitarbeiter angelegt.</p>';
-    renderOpenSickList();
-    return;
-  }
-  employeeList.innerHTML = state.employees
-    .map((emp) => {
-      const percent = state.employment.find((e) => e.id === emp.employmentPercent);
-      const hours = state.employment.find((e) => e.id === emp.employmentHours);
-      const func = state.functions.find((f) => f.id === emp.functionId);
-      const vacations = buildVacationOverview(emp);
-      const sickLeaves = buildSickOverview(emp);
-      const logs = buildLogOverview('employees', emp.id);
-      const hireInfo = emp.hireDate ? `Eintritt: ${formatShortDate(emp.hireDate)}` : 'Eintritt offen';
-      const exitInfo = emp.endDate ? ` · Austritt: ${formatShortDate(emp.endDate)}` : '';
-      return `
-        <div class="item employee-card">
-          <div class="employee-card__header">
-            <strong>${formatName(emp)}</strong>
-            <small>PNR ${emp.personnelNumber} · ${emp.birthday}</small>
-            <small>${percent?.percent ?? '?'}% · ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine Funktion'} · Nacht: ${
-              emp.nightAllowed ? 'ja' : 'nein'
-            } · RKT: ${emp.rkt ? 'ja' : 'nein'} · Doppelnacht: ${emp.doubleNights ? 'ja' : 'nein'}</small>
-            <small>${hireInfo}${exitInfo}</small>
-          </div>
-          <div class="employee-card__meta">${employeeVacationLine(emp)}</div>
-          <div class="card-details">
-            ${renderDetailsSection('Urlaube', vacations)}
-            ${renderDetailsSection('Krankenstände', sickLeaves)}
-            ${renderDetailsSection('Logs', logs)}
-          </div>
-        </div>`;
-    })
-    .join('');
-  renderOpenSickList();
-}
-
-function renderDetailsSection(label, data) {
-  const count = typeof data.count === 'number' ? data.count : 0;
-  return `<details><summary>${label} (${count})</summary>${data.body}</details>`;
-}
-
-function buildVacationOverview(emp) {
-  if (!emp.vacations?.length) {
-    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
-  }
-  const items = emp.vacations
-    .slice()
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .map((entry) => {
-      const days = calculateVacationDays(entry.start, entry.end);
-      const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
-      const reason = entry.reason ? ` · Grund: ${escapeHtml(entry.reason)}` : '';
-      return `<li><strong>${formatVacationRange(entry)}</strong><small>${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}${reason}</small></li>`;
-    })
-    .join('');
-  return { count: emp.vacations.length, body: `<ul>${items}</ul>` };
-}
-
-function buildSickOverview(emp) {
-  if (!emp.sickLeaves?.length) {
-    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
-  }
-  const items = emp.sickLeaves
-    .slice()
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .map((entry) => {
-      const days = calculateVacationDays(entry.start, entry.end);
-      const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
-      const statusMarkup = renderSickStatus(entry);
-      return `<li><strong>${formatVacationRange(entry)}</strong><small>${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</small>${statusMarkup}</li>`;
-    })
-    .join('');
-  return { count: emp.sickLeaves.length, body: `<ul>${items}</ul>` };
-}
-
-function renderSickStatus(entry) {
-  const confirmed = !!entry?.confirmed;
-  const icon = confirmed
-    ? '<span class="status-icon positive" aria-hidden="true">✔</span>'
-    : '<span class="status-icon negative" aria-hidden="true">✗</span>';
-  const text = confirmed ? 'Meldung erhalten' : 'keine Meldung';
-  return `<span class="status-label" title="${escapeHtml(text)}">${icon}<span>${text}</span></span>`;
-}
-
-function buildLogOverview(section, entityId) {
-  const entries = logsFor(section, entityId);
-  if (!entries.length) {
-    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
-  }
-  const items = entries
-    .map((entry) => `<li><small>${formatLogTimestamp(entry.timestamp)}</small><span>${entry.message}</span></li>`)
-    .join('');
-  return { count: entries.length, body: `<ul>${items}</ul>` };
-}
-
-function renderLogDetails(section, entityId) {
-  const data = buildLogOverview(section, entityId);
-  return renderDetailsSection('Logs', data);
-}
-
-function renderVacationPanel(emp) {
-  if (!vacationPanel) return;
-  if (!emp) {
-    vacationPanel.hidden = true;
-    vacationList.innerHTML = '';
-    vacationBalance.textContent = '';
-    if (vacationTypeSelect) vacationTypeSelect.value = 'vacation';
-    if (vacationReasonInput) vacationReasonInput.value = '';
-    updateVacationReasonVisibility();
-    return;
-  }
-  vacationPanel.hidden = false;
-  vacationBalance.textContent = vacationBalanceText(emp);
-  updateVacationReasonVisibility();
-  if (!emp.vacations?.length) {
-    vacationList.innerHTML = '<li class="muted">Noch kein Urlaub eingetragen</li>';
-    return;
-  }
-  const entries = emp.vacations.slice().sort((a, b) => a.start.localeCompare(b.start));
-  vacationList.innerHTML = entries
-    .map((entry) => {
-      const days = calculateVacationDays(entry.start, entry.end);
-      const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
-      const reason = entry.reason ? `<span class="muted">Grund: ${escapeHtml(entry.reason)}</span>` : '';
-      return `
-        <li>
-          <div class="entry-line">
-            <div>
-              <strong>${formatVacationRange(entry)}</strong>
-              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</span>
-              ${reason}
-            </div>
-            <div class="entry-actions">
-              <button type="button" class="ghost" data-remove-vacation="${entry.id}">Entfernen</button>
-            </div>
-          </div>
-        </li>`;
-    })
-    .join('');
-}
-
-function updateVacationReasonVisibility() {
-  if (!vacationReasonWrapper || !vacationTypeSelect) return;
-  const meta = VACATION_TYPES[vacationTypeSelect.value] || VACATION_TYPES.vacation;
-  if (meta.requiresReason) {
-    vacationReasonWrapper.classList.remove('hidden');
-  } else {
-    vacationReasonWrapper.classList.add('hidden');
-    if (vacationReasonInput) vacationReasonInput.value = '';
-  }
-}
-
-function renderSickPanel(emp) {
-  if (!sickPanel) return;
-  if (!emp) {
-    sickPanel.hidden = true;
-    sickList.innerHTML = '';
-    if (sickTypeSelect) sickTypeSelect.value = 'sick';
-    return;
-  }
-  sickPanel.hidden = false;
-  if (!emp.sickLeaves?.length) {
-    sickList.innerHTML = '<li class="muted">Noch kein Krankenstand eingetragen</li>';
-    return;
-  }
-  const entries = emp.sickLeaves.slice().sort((a, b) => a.start.localeCompare(b.start));
-  sickList.innerHTML = entries
-    .map((entry) => {
-      const days = calculateVacationDays(entry.start, entry.end);
-      const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
-      const statusMarkup = renderSickStatus(entry);
-      return `
-        <li>
-          <div class="entry-line">
-            <div>
-              <strong>${formatVacationRange(entry)}</strong>
-              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</span>
-              ${statusMarkup}
-            </div>
-            <div class="entry-actions">
-              <label class="checkbox inline">
-                <input type="checkbox" data-confirm-sick="${entry.id}" ${entry.confirmed ? 'checked' : ''}> Krankmeldung erhalten
-              </label>
-              <button type="button" class="ghost" data-remove-sick="${entry.id}">Entfernen</button>
-            </div>
-          </div>
-        </li>`;
-    })
-    .join('');
-}
-
-function handleAddVacation() {
-  if (!editing.employee) {
-    alert('Bitte zuerst einen Mitarbeiter auswählen.');
-    return;
-  }
-  const emp = state.employees.find((e) => e.id === editing.employee);
-  if (!emp) return;
-  if (!vacationStartInput.value) {
-    alert('Bitte ein Startdatum wählen.');
-    return;
-  }
-  const start = vacationStartInput.value;
-  const end = vacationEndInput.value || vacationStartInput.value;
-  const ordered = start <= end ? { start, end } : { start: end, end: start };
-  const type = VACATION_TYPES[vacationTypeSelect?.value] ? vacationTypeSelect.value : 'vacation';
-  const meta = VACATION_TYPES[type];
-  const reasonValue = vacationReasonInput?.value?.trim() || '';
-  if (meta.requiresReason && !reasonValue) {
-    alert('Bitte einen Grund für den Sonderurlaub angeben.');
-    return;
-  }
-  const breakdown = vacationBreakdown(ordered.start, ordered.end);
-  const conflicts = Object.entries(breakdown).filter(([year, days]) => {
-    const remaining = remainingVacationDays(emp, Number(year));
-    return days > remaining;
-  });
-  if (conflicts.length) {
-    const summary = conflicts.map(([year, days]) => `${year}: ${days} Tage`).join(', ');
-    if (!confirm(`Der Urlaub überschreitet den verfügbaren Resturlaub (${summary}). Trotzdem speichern?`)) {
-      return;
-    }
-  }
-  const violation = expandDateRange(ordered.start, ordered.end).find((dateStr) => {
-    const date = parseISODate(dateStr);
-    const limit = getVacationLimitForDate(date);
-    if (!limit) return false;
-    const count = countVacationsOnDate(date);
-    return count >= limit;
-  });
-  if (violation) {
-    const date = parseISODate(violation);
-    const label = date ? date.toLocaleDateString('de-AT', { dateStyle: 'medium' }) : violation;
-    alert(`Für ${label} ist die maximale Anzahl an Urlauber*innen bereits erreicht.`);
-    return;
-  }
-  const entry = { id: uuid(), start: ordered.start, end: ordered.end, type, reason: reasonValue };
-  emp.vacations.push(entry);
-  if (meta.clearsAssignments) {
-    clearAssignmentsForRange(emp.id, entry.start, entry.end);
-  }
-  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`, emp.id);
-  saveState();
-  renderVacationPanel(emp);
-  renderEmployees();
-  renderRoster();
-  vacationStartInput.value = '';
-  vacationEndInput.value = '';
-  if (vacationReasonInput) vacationReasonInput.value = '';
-  updateVacationReasonVisibility();
-}
-
-function handleVacationListClick(event) {
-  const button = event.target instanceof Element ? event.target.closest('[data-remove-vacation]') : null;
-  if (!button) return;
-  if (!editing.employee) return;
-  const emp = state.employees.find((e) => e.id === editing.employee);
-  if (!emp) return;
-  const entry = emp.vacations.find((v) => v.id === button.dataset.removeVacation);
-  if (!entry) return;
-  if (!confirm('Diesen Urlaub wirklich entfernen?')) return;
-  emp.vacations = emp.vacations.filter((entry) => entry.id !== button.dataset.removeVacation);
-  const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
-  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`, emp.id);
-  saveState();
-  renderVacationPanel(emp);
-  renderEmployees();
-  renderRoster();
-}
-
-function handleAddSick() {
-  if (!editing.employee) {
-    alert('Bitte zuerst einen Mitarbeiter auswählen.');
-    return;
-  }
-  const emp = state.employees.find((e) => e.id === editing.employee);
-  if (!emp) return;
-  if (!sickStartInput.value) {
-    alert('Bitte ein Startdatum wählen.');
-    return;
-  }
-  const start = sickStartInput.value;
-  const end = sickEndInput.value || sickStartInput.value;
-  const ordered = start <= end ? { start, end } : { start: end, end: start };
-  const kind = SICK_TYPES[sickTypeSelect?.value] ? sickTypeSelect.value : 'sick';
-  const meta = SICK_TYPES[kind];
-  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: false, kind };
-  emp.sickLeaves.push(entry);
-  if (meta.clearsAssignments) {
-    clearAssignmentsForRange(emp.id, entry.start, entry.end);
-  }
-  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`, emp.id);
-  saveState();
-  renderSickPanel(emp);
-  renderEmployees();
-  renderRoster();
-  sickStartInput.value = '';
-  sickEndInput.value = '';
-  if (sickTypeSelect) sickTypeSelect.value = 'sick';
-}
-
-function handleSickListClick(event) {
-  const button = event.target instanceof Element ? event.target.closest('[data-remove-sick]') : null;
-  if (!button) return;
-  if (!editing.employee) return;
-  const emp = state.employees.find((e) => e.id === editing.employee);
-  if (!emp) return;
-  const entry = emp.sickLeaves.find((s) => s.id === button.dataset.removeSick);
-  if (!entry) return;
-  if (!confirm('Diesen Krankenstand wirklich entfernen?')) return;
-  emp.sickLeaves = emp.sickLeaves.filter((s) => s.id !== entry.id);
-  const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
-  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`, emp.id);
-  saveState();
-  renderSickPanel(emp);
-  renderEmployees();
-  renderRoster();
-}
-
-function handleVacationLimitSubmit(event) {
-  event.preventDefault();
-  if (!vacationLimitStart) return;
-  const start = vacationLimitStart.value;
-  if (!start) {
-    alert('Bitte ein Startdatum angeben.');
-    return;
-  }
-  const end = vacationLimitEnd?.value || start;
-  const value = Number(vacationLimitValue?.value);
-  if (!Number.isFinite(value) || value < 0) {
-    alert('Bitte einen gültigen Wert eingeben.');
-    return;
-  }
-  const rangeLabel = `${formatShortDate(start)}${end && end !== start ? ` – ${formatShortDate(end)}` : ''}`;
-  state.vacationLimits = state.vacationLimits || [];
-  const existing = state.vacationLimits.find((entry) => entry.start === start && entry.end === end);
-  state.vacationLimits = state.vacationLimits.filter((entry) => entry !== existing);
-  if (value === 0) {
-    appendLog('vacationLimits', `Urlaubslimit für ${rangeLabel} entfernt.`, existing?.id || `${start}-${end}`);
-  } else {
-    const entry = { id: existing?.id || uuid(), start, end, limit: value };
-    state.vacationLimits.push(entry);
-    appendLog('vacationLimits', `Urlaubslimit ${value} Personen für ${rangeLabel} gespeichert.`, entry.id);
-  }
-  if (vacationLimitValue) vacationLimitValue.value = '';
-  saveState();
-  renderVacationMonitor();
-}
-
-function handleVacationLimitListClick(event) {
-  const button = event.target instanceof Element ? event.target.closest('[data-remove-limit]') : null;
-  if (!button) return;
-  const entryId = button.dataset.removeLimit;
-  if (!entryId) return;
-  const entry = (state.vacationLimits || []).find((item) => item.id === entryId);
-  if (!entry) return;
-  const rangeLabel = `${formatShortDate(entry.start)}${
-    entry.end && entry.end !== entry.start ? ` – ${formatShortDate(entry.end)}` : ''
-  }`;
-  if (!confirm(`Urlaubslimit für ${rangeLabel} wirklich löschen?`)) return;
-  state.vacationLimits = state.vacationLimits.filter((item) => item.id !== entryId);
-  appendLog('vacationLimits', `Urlaubslimit für ${rangeLabel} gelöscht.`, entryId);
-  saveState();
-  renderVacationMonitor();
-}
-
-function handleSickListChange(event) {
-  const checkbox = event.target instanceof HTMLInputElement ? event.target : null;
-  if (!checkbox || !checkbox.dataset.confirmSick) return;
-  if (!editing.employee) return;
-  const emp = state.employees.find((e) => e.id === editing.employee);
-  if (!emp) return;
-  const entry = emp.sickLeaves.find((s) => s.id === checkbox.dataset.confirmSick);
-  if (!entry) return;
-  entry.confirmed = checkbox.checked;
-  appendLog(
-    'employees',
-    `Krankmeldung für ${formatName(emp)} ${checkbox.checked ? 'bestätigt' : 'zurückgenommen'} (${formatVacationRange(entry)}).`,
-    emp.id
-  );
-  saveState();
-  renderSickPanel(emp);
-  renderEmployees();
-  renderRoster();
+  employeeList.innerHTML = state.employees.map((emp) => {
+    const percent = state.employment.find((e) => e.id === emp.employmentPercent);
+    const hours = state.employment.find((e) => e.id === emp.employmentHours);
+    const func = state.functions.find((f) => f.id === emp.functionId);
+    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
+  }).join('');
 }
 
 function renderServices() {
-  if (!serviceList) return;
-  if (!state.services.length) {
-    serviceList.innerHTML = '<p class="muted">Noch keine Dienste angelegt.</p>';
-    renderLegend();
-    return;
-  }
-  serviceList.innerHTML = state.services
-    .map((s) => {
-      const duration = serviceDuration(s);
-      return `
-        <div class="item">
-          <div><strong>${s.name}</strong><br><small>${s.start} – ${s.end} (${formatHours(duration)}h · ${
-            s.isNight ? 'Nachtdienst' : 'Tagdienst'
-          })</small></div>
-          ${renderLogDetails('services', s.id)}
-        </div>`;
-    })
-    .join('');
-  renderLegend();
+  serviceList.innerHTML = state.services.map((s) => `<div class="item"><strong>${s.name}</strong><small>${s.start} – ${s.end} (${serviceDuration(s)}h)</small></div>`).join('');
 }
 
 function renderFunctions() {
-  if (!functionList) return;
-  if (!state.functions.length) {
-    functionList.innerHTML = '<p class="muted">Noch keine Funktionen angelegt.</p>';
-    return;
-  }
-  functionList.innerHTML = state.functions
-    .map((f) => {
-      const names = f.serviceIds.map((id) => state.services.find((s) => s.id === id)?.name || '').filter(Boolean).join(', ');
-      return `
-        <div class="item">
-          <div><strong>${f.name}</strong><br><small>Dienste: ${names || 'Keine'}</small></div>
-          ${renderLogDetails('functions', f.id)}
-        </div>`;
-    })
-    .join('');
+  functionList.innerHTML = state.functions.map((f) => {
+    const names = f.serviceIds.map((id) => state.services.find((s) => s.id === id)?.name || '');
+    return `<div class="item"><div><strong>${f.name}</strong></div><small>Dienste: ${names.filter(Boolean).join(', ') || 'Keine'}</small></div>`;
+  }).join('');
 }
 
 function renderEmployment() {
-  if (!employmentList) return;
-  if (!state.employment.length) {
-    employmentList.innerHTML = '<p class="muted">Noch keine Einträge.</p>';
-    return;
-  }
-  employmentList.innerHTML = state.employment
-    .map((e) => `
-      <div class="item">
-        <div><strong>${e.percent}%</strong><br><small>${e.hours} Stunden/Monat</small></div>
-        ${renderLogDetails('employment', e.id)}
-      </div>`)
-    .join('');
-}
-
-function renderWeekdaySelects() {
-  weekdaySelects.forEach((select) => {
-    const previous = select.value;
-    const options = state.services
-      .map((s) => `<option value="${s.id}">${s.name} (${s.start}–${s.end})</option>`)
-      .join('');
-    select.innerHTML = '<option value="">Dienst auswählen…</option>' + options;
-    if (previous && state.services.some((s) => s.id === previous)) {
-      select.value = previous;
-    } else {
-      select.value = '';
-    }
-  });
-}
-
-function renderWeekdayLists() {
-  weekdayFields.forEach((field) => {
-    const weekday = field.dataset.weekdayField;
-    const container = field.querySelector('[data-weekday-list]');
-    const list = weekdaySelections[weekday] || [];
-    if (!list.length) {
-      container.innerHTML = '<span class="weekday-placeholder muted">Keine Dienste hinterlegt</span>';
-      return;
-    }
-    container.innerHTML = list
-      .map((id) => {
-        const service = state.services.find((s) => s.id === id);
-        if (!service) return '';
-        return `<span class="weekday-chip">${service.name}<button type="button" data-remove-service="${id}" aria-label="${service.name} entfernen">×</button></span>`;
-      })
-      .join('');
-  });
-}
-
-function renderWeekdayControls() {
-  renderWeekdaySelects();
-  renderWeekdayLists();
-}
-
-function renderWeekdayHistory() {
-  if (!weekdayHistory) return;
-  const rules = state.rules?.weekdayRules || [];
-  if (!rules.length) {
-    weekdayHistory.innerHTML = '<p class="muted">Noch keine Einträge.</p>';
-    return;
-  }
-  const sorted = rules
-    .slice()
-    .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-  weekdayHistory.innerHTML = sorted
-    .map((rule) => {
-      const start = rule.start ? formatShortDate(rule.start) : 'ohne Start';
-      const end = rule.end ? formatShortDate(rule.end) : 'offen';
-      const range = rule.start || rule.end ? `${start} – ${end}` : 'Ohne Begrenzung';
-      const services = WEEKDAY_KEYS.map((key) => {
-        const ids = rule.services?.[key] || [];
-        if (!ids.length) return '';
-        const names = ids
-          .map((id) => state.services.find((s) => s.id === id)?.name || '')
-          .filter(Boolean)
-          .join(', ');
-        if (!names) return '';
-        return `<small>${weekdayLabelFromKey(key)}: ${names}</small>`;
-      })
-        .filter(Boolean)
-        .join('');
-      return `
-        <div class="item">
-          <div>
-            <strong>${range}</strong>
-            ${services || '<small class="muted">Keine Dienste definiert</small>'}
-          </div>
-          <div class="entry-actions">
-            <button type="button" class="ghost" data-delete-weekday-rule="${rule.id}">Entfernen</button>
-          </div>
-        </div>`;
-    })
-    .join('');
-}
-
-function setupWeekdayInteractions() {
-  weekdayFields.forEach((field) => {
-    const weekday = field.dataset.weekdayField;
-    const addBtn = field.querySelector('[data-weekday-add]');
-    const select = field.querySelector('[data-weekday-select]');
-    const list = field.querySelector('[data-weekday-list]');
-    if (addBtn && select) {
-      addBtn.addEventListener('click', () => {
-        const value = select.value;
-        if (!value) return;
-        if (!weekdaySelections[weekday]) weekdaySelections[weekday] = [];
-        if (!weekdaySelections[weekday].includes(value)) {
-          weekdaySelections[weekday].push(value);
-          renderWeekdayLists();
-        }
-        select.value = '';
-      });
-    }
-    if (list) {
-      list.addEventListener('click', (event) => {
-        const base = event.target instanceof Element ? event.target.closest('[data-remove-service]') : null;
-        if (!base) return;
-        const toRemove = base.dataset.removeService;
-        weekdaySelections[weekday] = (weekdaySelections[weekday] || []).filter((id) => id !== toRemove);
-        renderWeekdayLists();
-      });
-    }
-  });
-  if (weekdayHistory) {
-    weekdayHistory.addEventListener('click', handleWeekdayHistoryClick);
-  }
-}
-
-function handleWeekdayHistoryClick(event) {
-  const button = event.target instanceof Element ? event.target.closest('[data-delete-weekday-rule]') : null;
-  if (!button) return;
-  const id = button.dataset.deleteWeekdayRule;
-  if (!id) return;
-  if (!confirm('Diesen Pflichtdienst-Zeitraum wirklich löschen?')) return;
-  state.rules.weekdayRules = (state.rules.weekdayRules || []).filter((rule) => rule.id !== id);
-  if (!state.rules.weekdayRules.length) {
-    state.rules.weekdayRules = [createWeekdayRule({ services: ensureWeekdaySelections({}, state.services) })];
-  }
-  weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
-  appendLog('rules', 'Pflichtdiensteintrag entfernt.', id);
-  saveState();
-  renderWeekdayHistory();
-  renderWeekdayControls();
-  renderRoster();
+  employmentList.innerHTML = state.employment.map((e) => `<div class="item"><strong>${e.percent}%</strong><small>${e.hours} Stunden/Monat</small></div>`).join('');
 }
 
 function renderRules() {
   const r = state.rules;
-  const form = rulesForm.elements;
-  form.restDays.value = r.restDays ?? '';
-  form.maxHoursWeek.value = r.maxHoursWeek ?? '';
-  if (form.minFreeWeekends) form.minFreeWeekends.value = r.minFreeWeekends ?? '';
-  form.maxNights.value = r.maxNights ?? '';
-  if (vacationDefaultInput) vacationDefaultInput.value = r.vacationDefault ?? '';
-  if (weekdayRangeStart) weekdayRangeStart.value = '';
-  if (weekdayRangeEnd) weekdayRangeEnd.value = '';
-  weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
-  renderWeekdayControls();
-  renderWeekdayHistory();
-  renderVacationLimitList();
-  if (rulesSummary) {
-    const summary = `<div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${
-      r.maxHoursWeek ?? '–'
-    } Std · Freie Wochenenden: ${r.minFreeWeekends ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'} · Urlaubslimit: ${
-      r.vacationDefault ?? '–'
-    } Personen</small>`;
-    rulesSummary.innerHTML = `<div class="item">${summary}${renderLogDetails('rules', 'rules')}</div>`;
-  }
-}
-
-function renderLegend() {
-  if (!serviceLegend) return;
-  if (!state.services.length) {
-    serviceLegend.innerHTML = '<p class="muted">Noch keine Dienste definiert.</p>';
-    return;
-  }
-  const chips = state.services
-    .map((service) => {
-      const label = service.isNight ? ' · Nachtdienst' : '';
-      return `<span>${escapeHtml(service.name)} ${service.start}–${service.end}${label}</span>`;
-    })
-    .join('');
-  serviceLegend.innerHTML = `<strong>Dienstlegende:</strong>${chips}`;
-}
-
-function renderVacationMonitor() {
-  renderVacationLimitList();
-  renderVacationChart();
-  if (vacationLimitStart && !vacationLimitStart.value) {
-    vacationLimitStart.value = formatISODate(currentMonth);
-  }
-  if (vacationLimitEnd && !vacationLimitEnd.value) {
-    vacationLimitEnd.value = formatISODate(currentMonth);
-  }
-}
-
-function renderVacationLimitList() {
-  if (!vacationLimitList) return;
-  const entries = (state.vacationLimits || [])
-    .slice()
-    .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-  if (!entries.length) {
-    vacationLimitList.innerHTML = '<p class="muted">Keine Limits gesetzt.</p>';
-    return;
-  }
-  vacationLimitList.innerHTML = entries
-    .map((entry) => {
-      const rangeLabel = `${formatShortDate(entry.start)}${
-        entry.end && entry.end !== entry.start ? ` – ${formatShortDate(entry.end)}` : ''
-      }`;
-      return `
-        <div class="item">
-          <div><strong>${rangeLabel}</strong><br><small>Max. ${entry.limit} Personen</small></div>
-          <div class="entry-actions">
-            <button type="button" class="ghost" data-remove-limit="${entry.id}">Löschen</button>
-          </div>
-          ${renderLogDetails('vacationLimits', entry.id)}
-        </div>`;
-    })
-    .join('');
-}
-
-function renderVacationChart() {
-  if (!vacationChart) return;
-  const days = daysInMonth(currentMonth);
-  if (!state.employees.length) {
-    vacationChart.innerHTML = '<p class="muted">Keine Mitarbeiter vorhanden.</p>';
-    return;
-  }
-  const items = [];
-  for (let day = 1; day <= days; day++) {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const count = countVacationsOnDate(date);
-    const limit = getVacationLimitForDate(date);
-    const width = limit ? Math.min((count / limit) * 100, 100) : Math.min(count * 25, 100);
-    const classes = ['vacation-day'];
-    if (limit && count >= limit) classes.push('limit-hit');
-    const label = date.toLocaleDateString('de-AT', { weekday: 'short' });
-    const status = limit ? `${count}/${limit} Personen` : `${count} Personen`;
-    items.push(`
-      <div class="${classes.join(' ')}">
-        <strong>${day}.</strong>
-        <span>${label}</span>
-        <div class="vacation-bar"><span style="width:${width}%"></span></div>
-        <small>${status}</small>
-      </div>`);
-  }
-  vacationChart.innerHTML = items.join('');
-}
-
-function renderOpenSickList() {
-  if (!openSickList) return;
-  const entries = [];
-  state.employees.forEach((emp) => {
-    (emp.sickLeaves || []).forEach((entry) => {
-      if (!entry.confirmed) entries.push({ emp, entry });
-    });
-  });
-  const hasOpen = entries.length > 0;
-  if (menuEmployeeAlert) {
-    menuEmployeeAlert.hidden = !hasOpen;
-    if (hasOpen) menuEmployeeAlert.textContent = '!';
-  }
-  if (openSickIndicator) {
-    openSickIndicator.hidden = !hasOpen;
-    if (hasOpen) openSickIndicator.textContent = '!';
-  }
-  if (!entries.length) {
-    openSickList.innerHTML = '<p class="muted">Keine offenen Krankmeldungen.</p>';
-    return;
-  }
-  entries.sort((a, b) => a.entry.start.localeCompare(b.entry.start));
-  openSickList.innerHTML = entries
-    .map(({ emp, entry }) => {
-      const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
-      const range = formatVacationRange(entry);
-      const days = calculateVacationDays(entry.start, entry.end);
-      return `
-        <div class="item open-sick-item">
-          <strong>${formatName(emp)}</strong>
-          <small>${range} · ${meta.name} (${days} Tag${days === 1 ? '' : 'e'})</small>
-          ${renderSickStatus(entry)}
-        </div>`;
-    })
-    .join('');
-}
-
-function renderServiceChip(service, options = {}) {
-  if (!service) return '';
-  const classes = ['service-chip'];
-  if (options.strike) classes.push('strike');
-  const windowLabel = service.start && service.end ? `${service.start}–${service.end}` : '';
-  const tooltip = [service.name, windowLabel].filter(Boolean).join(' · ');
-  return `<span class="${classes.join(' ')}" title="${escapeHtml(tooltip)}">${service.name}</span>`;
+  rulesSummary.innerHTML = `<div class="item"><div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${r.maxHoursWeek ?? '–'} Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'}</small></div>`;
 }
 
 function fillEmployeeForm(emp) {
@@ -1962,14 +241,8 @@ function fillEmployeeForm(emp) {
   form.employmentPercent.value = emp.employmentPercent || '';
   form.employmentHours.value = emp.employmentHours || '';
   form.functionId.value = emp.functionId || '';
-  form.vacationDays.value = emp.vacationDays ?? 0;
-  form.holidayFactor.value = emp.holidayFactor ?? 0;
-  form.dailyWorkHours.value = emp.dailyWorkHours ?? 0;
-  form.hireDate.value = emp.hireDate || '';
-  form.endDate.value = emp.endDate || '';
   form.nightAllowed.checked = !!emp.nightAllowed;
   form.rkt.checked = !!emp.rkt;
-  form.doubleNights.checked = !!emp.doubleNights;
 }
 
 function fillServiceForm(service) {
@@ -1977,7 +250,6 @@ function fillServiceForm(service) {
   form.name.value = service.name || '';
   form.start.value = service.start || '';
   form.end.value = service.end || '';
-  form.isNight.checked = !!service.isNight;
 }
 
 function fillFunctionForm(func) {
@@ -1997,13 +269,8 @@ function fillEmploymentForm(entry) {
 function handleEmployeeForm(e) {
   e.preventDefault();
   const data = new FormData(employeeForm);
-  const isUpdate = !!editing.employee;
-  const existing = isUpdate ? state.employees.find((emp) => emp.id === editing.employee) : null;
   const entry = {
-    id: editing.employee ?? uuid(),
-    vacations: existing?.vacations ? clone(existing.vacations) : [],
-    sickLeaves: existing?.sickLeaves ? clone(existing.sickLeaves) : [],
-    groupId: existing?.groupId || null,
+    id: editing.employee ?? crypto.randomUUID(),
     firstName: data.get('firstName').trim(),
     lastName: data.get('lastName').trim(),
     personnelNumber: data.get('personnelNumber').trim(),
@@ -2011,17 +278,11 @@ function handleEmployeeForm(e) {
     employmentPercent: data.get('employmentPercent'),
     employmentHours: data.get('employmentHours'),
     functionId: data.get('functionId'),
-    vacationDays: Number(data.get('vacationDays')) || 0,
-    holidayFactor: Number(data.get('holidayFactor')) || 0,
-    dailyWorkHours: Number(data.get('dailyWorkHours')) || 0,
-    hireDate: data.get('hireDate') || '',
-    endDate: data.get('endDate') || '',
     nightAllowed: data.get('nightAllowed') === 'on',
-    doubleNights: data.get('doubleNights') === 'on',
     rkt: data.get('rkt') === 'on',
   };
 
-  if (isUpdate) {
+  if (editing.employee) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.employees.findIndex((emp) => emp.id === editing.employee);
     if (idx !== -1) {
@@ -2029,40 +290,22 @@ function handleEmployeeForm(e) {
     }
   } else {
     state.employees.push(entry);
-    ensureEmployeeInLayout(entry.id);
     editing.employee = entry.id;
     employeePicker.value = entry.id;
   }
-  appendLog('employees', `Mitarbeiter ${formatName(entry)} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderEmployees();
   renderRoster();
   fillEmployeeForm(entry);
-  renderVacationPanel(entry);
-  renderSickPanel(entry);
-}
-
-function handleEmployeeFormReset() {
-  editing.employee = null;
-  employeePicker.value = '';
-  renderVacationPanel(null);
-  renderSickPanel(null);
 }
 
 function handleServiceForm(e) {
   e.preventDefault();
   const data = new FormData(serviceForm);
-  const isUpdate = !!editing.service;
-  const entry = {
-    id: editing.service ?? uuid(),
-    name: data.get('name').trim(),
-    start: data.get('start'),
-    end: data.get('end'),
-    isNight: data.get('isNight') === 'on',
-  };
+  const entry = { id: editing.service ?? crypto.randomUUID(), name: data.get('name').trim(), start: data.get('start'), end: data.get('end') };
 
-  if (isUpdate) {
+  if (editing.service) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.services.findIndex((s) => s.id === editing.service);
     if (idx !== -1) state.services[idx] = entry;
@@ -2071,12 +314,10 @@ function handleServiceForm(e) {
     editing.service = entry.id;
     servicePicker.value = entry.id;
   }
-  appendLog('services', `Dienst ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderServices();
   renderFunctions();
-  renderRules();
   renderRoster();
   fillServiceForm(entry);
 }
@@ -2084,11 +325,10 @@ function handleServiceForm(e) {
 function handleFunctionForm(e) {
   e.preventDefault();
   const data = new FormData(functionForm);
-  const isUpdate = !!editing.function;
   const serviceIds = data.getAll('serviceIds');
-  const entry = { id: editing.function ?? uuid(), name: data.get('name').trim(), serviceIds };
+  const entry = { id: editing.function ?? crypto.randomUUID(), name: data.get('name').trim(), serviceIds };
 
-  if (isUpdate) {
+  if (editing.function) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.functions.findIndex((f) => f.id === editing.function);
     if (idx !== -1) state.functions[idx] = entry;
@@ -2097,7 +337,6 @@ function handleFunctionForm(e) {
     editing.function = entry.id;
     functionPicker.value = entry.id;
   }
-  appendLog('functions', `Funktion ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderFunctions();
@@ -2108,10 +347,9 @@ function handleFunctionForm(e) {
 function handleEmploymentForm(e) {
   e.preventDefault();
   const data = new FormData(employmentForm);
-  const isUpdate = !!editing.employment;
-  const entry = { id: editing.employment ?? uuid(), percent: Number(data.get('percent')), hours: Number(data.get('hours')) };
+  const entry = { id: editing.employment ?? crypto.randomUUID(), percent: Number(data.get('percent')), hours: Number(data.get('hours')) };
 
-  if (isUpdate) {
+  if (editing.employment) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.employment.findIndex((eItem) => eItem.id === editing.employment);
     if (idx !== -1) state.employment[idx] = entry;
@@ -2120,7 +358,6 @@ function handleEmploymentForm(e) {
     editing.employment = entry.id;
     employmentPicker.value = entry.id;
   }
-  appendLog('employment', `Anstellungsverhältnis ${entry.percent}% · ${entry.hours} Std ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderEmployment();
@@ -2132,47 +369,15 @@ function handleEmploymentForm(e) {
 function handleRulesForm(e) {
   e.preventDefault();
   const data = new FormData(rulesForm);
-  const selections = ensureWeekdaySelections(weekdaySelections, state.services);
-  const restDays = toNumber(data.get('restDays'));
-  const maxWeek = toNumber(data.get('maxHoursWeek'));
-  const minFreeWeekends = toNumber(data.get('minFreeWeekends'));
-  const maxNights = toNumber(data.get('maxNights'));
-  const vacationDefault = toNumber(data.get('vacationDefault'));
-  const start = data.get('weekdayRangeStart');
-  const end = data.get('weekdayRangeEnd');
-  state.rules.restDays = restDays;
-  state.rules.maxHoursWeek = maxWeek;
-  state.rules.minFreeWeekends = Number.isFinite(minFreeWeekends) ? minFreeWeekends : undefined;
-  state.rules.maxNights = maxNights;
-  state.rules.vacationDefault = Number.isFinite(vacationDefault)
-    ? vacationDefault
-    : state.rules.vacationDefault;
-  let message = 'Regelwerk aktualisiert.';
-  if (start) {
-    state.rules.weekdayRules = state.rules.weekdayRules || [];
-    const entry = {
-      id: uuid(),
-      start,
-      end: end || '',
-      services: selections,
-    };
-    state.rules.weekdayRules.push(entry);
-    weekdaySelections = ensureWeekdaySelections(entry.services, state.services);
-    if (weekdayRangeStart) weekdayRangeStart.value = '';
-    if (weekdayRangeEnd) weekdayRangeEnd.value = '';
-    message = `Pflichtdienste ab ${formatShortDate(start)} gespeichert.`;
-  } else if (state.rules.weekdayRules?.length) {
-    const active = currentWeekdayRule();
-    if (active) {
-      active.services = selections;
-    }
-  } else {
-    state.rules.weekdayRules = [createWeekdayRule({ services: selections })];
-  }
-  appendLog('rules', message, 'rules');
+  state.rules = {
+    restDays: toNumber(data.get('restDays')),
+    maxHoursWeek: toNumber(data.get('maxHoursWeek')),
+    maxHoursMonth: toNumber(data.get('maxHoursMonth')),
+    maxWeekendDays: toNumber(data.get('maxWeekendDays')),
+    maxNights: toNumber(data.get('maxNights')),
+  };
   saveState();
   renderRules();
-  renderRoster();
 }
 
 function toNumber(value) {
@@ -2191,51 +396,23 @@ function showScreen(target) {
   });
   if (target === 'roster') {
     renderRoster();
-  } else if (target === 'vacationOverview') {
-    renderVacationMonitor();
   }
-}
-
-function setRosterMode(mode) {
-  const next = mode === 'view' ? 'view' : 'edit';
-  if (next === rosterMode) return;
-  rosterMode = next;
-  renderRoster();
 }
 
 function buildRosterHeader(date) {
   const days = daysInMonth(date);
-  const headerRows = [document.createElement('tr'), document.createElement('tr'), document.createElement('tr')];
-  headerRows[2].className = 'vacation-summary-row';
+  const headerRows = [document.createElement('tr'), document.createElement('tr')];
   const stickyCells = [
-    '<th class="names col-info" rowspan="3"><div class="info-header"><span>Name</span><span>Personalnummer</span></div></th>',
-    '<th class="names col-hours" rowspan="3"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span><span>Nachtdienste</span><span>Feiertagsdienste</span></div></th>',
+    '<th class="names" rowspan="2">Name</th>',
+    '<th class="names" rowspan="2">Personalnummer</th>',
+    '<th class="names" rowspan="2">Stundensoll</th>',
   ];
   stickyCells.forEach((html) => headerRows[0].insertAdjacentHTML('beforeend', html));
   for (let day = 1; day <= days; day++) {
     const d = new Date(date.getFullYear(), date.getMonth(), day);
     const label = `<div class="day-label"><span>${day}.${String(date.getMonth() + 1).padStart(2, '0')}.</span><span>${weekdayLabel(d)}</span></div>`;
-    const cls = ['day-col'];
-    if (isHoliday(d)) cls.push('holiday');
-    else if (d.getDay() === 0) cls.push('weekend');
-    else if (d.getDay() === 6) cls.push('saturday');
-    const baseClass = cls.join(' ');
-    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${baseClass}" colspan="1">${label}</th>`);
-    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${baseClass}">${day}</th>`);
-    const vacData = vacationHeaderData(d);
-    const summaryClasses = cls.slice();
-    summaryClasses.push('vacation-summary');
-    if (vacData.limit && vacData.count >= vacData.limit) {
-      summaryClasses.push('limit-hit');
-    }
-    const displayedNames = vacData.names.slice(0, 3).map((name) => escapeHtml(name));
-    const overflow = vacData.count > 3 ? ` +${vacData.count - 3}` : '';
-    const namesLabel = vacData.count ? `${displayedNames.join(', ')}${overflow}` : '–';
-    const countLabel = vacData.limit ? `${vacData.count}/${vacData.limit}` : `${vacData.count}`;
-    headerRows[2].insertAdjacentHTML(
-      'beforeend',
-      `<th class="${summaryClasses.join(' ')}"><div class="day-vacations"><span class="vacation-count">Urlaub ${countLabel}</span><span class="vacation-names">${namesLabel}</span></div></th>`
-    );
+    const cls = [isWeekend(d) ? 'weekend' : '', d.getDay() === 6 ? 'saturday' : '', isHoliday(d) ? 'holiday' : ''].filter(Boolean).join(' ');
+    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${cls}" colspan="1">${label}</th>`);
   }
   rosterTable.innerHTML = '';
   headerRows.forEach((row) => rosterTable.appendChild(row));
@@ -2244,376 +421,40 @@ function buildRosterHeader(date) {
 function renderRoster() {
   buildRosterHeader(currentMonth);
   const monthKey = getMonthKey(currentMonth);
-  ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
-  cleanSelectedRows();
-  const employees = getOrderedEmployees().filter((emp) => isEmployeeActiveInMonth(emp, currentMonth));
-  const renderedGroups = new Set();
-  let assignmentsCleaned = false;
-  const markAssignmentsDirty = () => {
-    assignmentsCleaned = true;
-  };
 
-  employees.forEach((emp) => {
-    if (emp.groupId) {
-      const group = state.groups.find((g) => g.id === emp.groupId);
-      if (group && !renderedGroups.has(group.id)) {
-        rosterTable.appendChild(buildGroupRow(group, days));
-        renderedGroups.add(group.id);
-      }
+  state.employees.forEach((emp) => {
+    const tr = document.createElement('tr');
+    const employment = state.employment.find((e) => e.id === emp.employmentHours);
+    tr.innerHTML = `
+      <td class="names">${formatName(emp)}</td>
+      <td class="names">${emp.personnelNumber}</td>
+      <td class="names">${employment?.hours ?? '–'} Std</td>
+    `;
+    for (let day = 1; day <= days; day++) {
+      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const cls = ['cell'];
+      if (isHoliday(d)) cls.push('holiday');
+      else if (d.getDay() === 0) cls.push('weekend');
+      else if (d.getDay() === 6) cls.push('saturday');
+      const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
+      const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
+      const selectId = `${emp.id}-${day}`;
+      const options = ['<option value="">–</option>'].concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`)).join('');
+      const td = document.createElement('td');
+      td.className = cls.join(' ');
+      td.innerHTML = `
+        <div class="cell">
+          <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
+          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
+        </div>
+      `;
+      tr.appendChild(td);
     }
-    rosterTable.appendChild(buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty));
+    rosterTable.appendChild(tr);
   });
-
-  const unassignedRow = document.createElement('tr');
-  unassignedRow.className = 'unassigned-row';
-  unassignedRow.innerHTML = `
-    <td class="names col-info" colspan="2">
-      <div class="info-cell">
-        <span class="emp-name">Nicht verplante Dienste</span>
-      </div>
-    </td>
-  `;
-  for (let day = 1; day <= days; day++) {
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const remaining = remainingServicesForDay(day, monthKey, d);
-    const cls = ['unassigned-cell', 'day-col'];
-    if (isHoliday(d)) cls.push('holiday');
-    else if (d.getDay() === 0) cls.push('weekend');
-    else if (d.getDay() === 6) cls.push('saturday');
-    if (!remaining.length) cls.push('complete');
-    const td = document.createElement('td');
-    td.className = cls.join(' ');
-    if (remaining.length) {
-      td.innerHTML = `<div class="unassigned-list">${remaining.map((s) => `<span>${s.name}</span>`).join('')}</div>`;
-    } else {
-      td.innerHTML = '<span class="all-assigned">Alle geplant</span>';
-    }
-    unassignedRow.appendChild(td);
-  }
-  rosterTable.appendChild(unassignedRow);
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
-  if (rosterPanel) rosterPanel.dataset.mode = rosterMode;
-  rosterModeButtons.forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.rosterMode === rosterMode);
-  });
-  renderLegend();
-  renderVacationMonitor();
-  if (editing.employee) {
-    const currentEmp = state.employees.find((e) => e.id === editing.employee);
-    if (currentEmp) {
-      renderVacationPanel(currentEmp);
-      renderSickPanel(currentEmp);
-    }
-  }
-  updateRowToolStates();
-  if (assignmentsCleaned) {
-    saveState();
-  }
-}
-
-function buildGroupRow(group, days) {
-  const tr = document.createElement('tr');
-  tr.className = 'group-row';
-  tr.dataset.groupId = group.id;
-  const infoCell = document.createElement('td');
-  infoCell.className = 'group-name names col-info';
-  infoCell.colSpan = 2;
-  infoCell.innerHTML = `
-    <div class="group-header">
-      <strong>${group.name}</strong>
-      <span class="group-header__actions">
-        <button type="button" class="ghost" data-rename-group="${group.id}">Umbenennen</button>
-        <button type="button" class="ghost" data-delete-group="${group.id}">Gruppe löschen</button>
-      </span>
-    </div>
-  `;
-  tr.appendChild(infoCell);
-  for (let i = 0; i < days; i++) {
-    const spacer = document.createElement('td');
-    spacer.className = 'group-spacer day-col';
-    tr.appendChild(spacer);
-  }
-  return tr;
-}
-
-function buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty) {
-  const tr = document.createElement('tr');
-  tr.dataset.empRow = emp.id;
-  const targetHours = monthlyTargetHours(emp, currentMonth);
-  const assignedHours = hoursForEmployee(monthKey, emp.id);
-  const remainingHours = targetHours - assignedHours;
-  const remainingClass = remainingHours < 0 ? 'hours-remaining negative' : 'hours-remaining';
-  const selected = selectedRows.has(emp.id) ? 'checked' : '';
-  const nameCell = document.createElement('td');
-  nameCell.className = 'names col-info';
-  nameCell.innerHTML = `
-    <div class="row-header">
-      <label class="sr-only" for="row-select-${emp.id}">Mitarbeiter auswählen</label>
-      <input type="checkbox" id="row-select-${emp.id}" data-row-select="${emp.id}" ${selected}>
-      <button type="button" class="drag-handle" data-drag-handle draggable="true" aria-label="Zeile verschieben">⋮⋮</button>
-      <div class="info-cell">
-        <span class="emp-name">${formatName(emp)}</span>
-        <span class="emp-pnr">${emp.personnelNumber}</span>
-      </div>
-    </div>
-  `;
-  tr.appendChild(nameCell);
-
-  const hoursCell = document.createElement('td');
-  hoursCell.className = 'names col-hours';
-  const stats = specialShiftStats(monthKey, emp.id);
-  hoursCell.innerHTML = `
-    <div class="hours-cell">
-      <span class="hours-target">Stundensoll: ${formatHours(targetHours)} Std</span>
-      <span class="${remainingClass}">Noch: ${formatHours(remainingHours)} Std</span>
-      <div class="hours-metrics">
-        <span>Nachtdienste: <strong>${stats.nights}</strong></span>
-        <span>Feiertagsdienste: <strong>${stats.holidayShifts}</strong></span>
-      </div>
-    </div>
-  `;
-  tr.appendChild(hoursCell);
-
-  for (let day = 1; day <= days; day++) {
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const cls = ['day-col'];
-    if (isHoliday(d)) cls.push('holiday');
-    else if (d.getDay() === 0) cls.push('weekend');
-    else if (d.getDay() === 6) cls.push('saturday');
-    const activeOnDate = isEmployeeActiveOnDate(emp, d);
-    const monthAssignments = state.assignments[monthKey] || {};
-    const monthLocks = state.locks[monthKey] || {};
-    let assign = monthAssignments[emp.id]?.[day] ?? '';
-    const locked = !!monthLocks[emp.id]?.[day];
-    const canAssign = activeOnDate;
-    if (!canAssign && assign && monthAssignments[emp.id]) {
-      delete monthAssignments[emp.id][day];
-      assign = '';
-      if (!Object.keys(monthAssignments[emp.id]).length) {
-        delete monthAssignments[emp.id];
-      }
-      if (typeof markAssignmentsDirty === 'function') {
-        markAssignmentsDirty();
-      }
-    }
-    const serviceOptions = allowedServicesForEmployee(emp, assign);
-    const selectPieces = ['<option value="">–</option>'];
-    let includesAssigned = false;
-    serviceOptions.forEach((s) => {
-      if (assign === s.id) includesAssigned = true;
-      selectPieces.push(`<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`);
-    });
-    if (assign && !includesAssigned) {
-      const fallbackService = state.services.find((s) => s.id === assign);
-      if (fallbackService) {
-        selectPieces.push(`<option value="${assign}" selected>${fallbackService.name}</option>`);
-      }
-    }
-    const options = selectPieces.join('');
-    const td = document.createElement('td');
-    const vacationEntry = activeOnDate ? findVacationOnDate(emp, d) : null;
-    const sickEntry = activeOnDate ? findSickOnDate(emp, d) : null;
-    const isBirthday = hasBirthdayOnDate(emp, d);
-    if (vacationEntry) cls.push('vacation');
-    if (sickEntry) cls.push('sick');
-    td.className = cls.join(' ');
-    if (!canAssign) {
-      td.classList.add('inactive');
-    }
-    const selectDisabled = locked || !serviceOptions.length || !canAssign;
-    const parts = ['<div class="cell">'];
-    if (isBirthday) {
-      parts.push('<span class="birthday-flag" title="Geburtstag">🎂</span>');
-    }
-    const showVacation = !!vacationEntry;
-    const showSick = !!sickEntry;
-    const absenceMeta = showVacation ? VACATION_TYPES[vacationEntry.type] || VACATION_TYPES.vacation : null;
-    const sickMeta = showSick ? SICK_TYPES[sickEntry.kind] || SICK_TYPES.sick : null;
-    const showAbsence = showVacation || showSick;
-    const service = serviceOptions.find((s) => s.id === assign) || state.services.find((s) => s.id === assign);
-    const showServiceWithAbsence =
-      (showVacation && absenceMeta?.showService && service) || (showSick && sickMeta?.showService && service);
-    if (showServiceWithAbsence) {
-      parts.push(renderServiceChip(service, { strike: true }));
-    }
-    if (!activeOnDate) {
-      parts.push('<span class="muted">-</span>');
-    } else if (showAbsence) {
-      const label = showVacation ? absenceMeta.label : sickMeta.label;
-      const titleParts = [showVacation ? absenceMeta.name : sickMeta.name];
-      if (showVacation && vacationEntry.reason) titleParts.push(`Grund: ${escapeHtml(vacationEntry.reason)}`);
-      if (showSick && !sickEntry.confirmed) titleParts.push('Keine Meldung');
-      const title = titleParts.join(' · ');
-      parts.push(
-        `<span class="absence-pill ${showVacation ? 'vacation' : 'sick'}" title="${title}">${label}</span>`
-      );
-    } else if (!canAssign) {
-      parts.push('<span class="muted">-</span>');
-    } else if (rosterMode === 'view') {
-      if (service) {
-        parts.push(renderServiceChip(service));
-      } else {
-        parts.push('<span class="muted">–</span>');
-      }
-    } else {
-      parts.push(`<select data-emp="${emp.id}" data-day="${day}" ${selectDisabled ? 'disabled' : ''}>${options}</select>`);
-      parts.push(
-        `<label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>`
-      );
-    }
-    parts.push('</div>');
-    td.innerHTML = parts.join('');
-    tr.appendChild(td);
-  }
-  return tr;
-}
-
-function handleCreateGroup() {
-  if (!selectedRows.size) return;
-  const name = prompt('Name der neuen Gruppe', 'Neue Gruppe');
-  if (name === null) {
-    renderRoster();
-    return;
-  }
-  const trimmed = name.trim();
-  if (!trimmed) {
-    renderRoster();
-    return;
-  }
-  const group = { id: uuid(), name: trimmed || 'Neue Gruppe' };
-  state.groups.push(group);
-  selectedRows.forEach((id) => {
-    const emp = state.employees.find((e) => e.id === id);
-    if (emp) emp.groupId = group.id;
-  });
-  appendLog('roster', `Gruppe "${group.name}" mit ${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} erstellt.`);
-  saveState();
-  updateGroupPicker();
-  renderEmployees();
-  renderRoster();
-}
-
-function handleAssignGroup() {
-  if (!selectedRows.size || !groupSelect.value) return;
-  const group = state.groups.find((g) => g.id === groupSelect.value);
-  selectedRows.forEach((id) => {
-    const emp = state.employees.find((e) => e.id === id);
-    if (emp) emp.groupId = groupSelect.value;
-  });
-  appendLog(
-    'roster',
-    `${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} der Gruppe "${group?.name || 'Unbekannt'}" zugewiesen.`
-  );
-  saveState();
-  renderRoster();
-}
-
-function handleRemoveGroup() {
-  if (!selectedRows.size) return;
-  selectedRows.forEach((id) => {
-    const emp = state.employees.find((e) => e.id === id);
-    if (emp) emp.groupId = null;
-  });
-  appendLog('roster', `${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} aus Gruppen gelöst.`);
-  saveState();
-  renderRoster();
-}
-
-function renameGroup(groupId) {
-  const group = state.groups.find((g) => g.id === groupId);
-  if (!group) return;
-  const previous = group.name;
-  const name = prompt('Neuer Gruppenname', group.name);
-  if (!name) return;
-  group.name = name.trim() || group.name;
-  appendLog('roster', `Gruppe "${previous}" in "${group.name}" umbenannt.`);
-  saveState();
-  updateGroupPicker();
-  renderRoster();
-}
-
-function deleteGroup(groupId) {
-  const group = state.groups.find((g) => g.id === groupId);
-  if (!group) return;
-  if (!confirm(`Gruppe "${group.name}" wirklich löschen?`)) return;
-  state.groups = state.groups.filter((g) => g.id !== groupId);
-  state.employees.forEach((emp) => {
-    if (emp.groupId === groupId) emp.groupId = null;
-  });
-  if (groupSelect.value === groupId) groupSelect.value = '';
-  appendLog('roster', `Gruppe "${group.name}" gelöscht.`);
-  saveState();
-  updateGroupPicker();
-  renderEmployees();
-  renderRoster();
-}
-
-function handleRosterClick(event) {
-  const renameBtn = event.target instanceof Element ? event.target.closest('[data-rename-group]') : null;
-  if (renameBtn) {
-    renameGroup(renameBtn.dataset.renameGroup);
-    return;
-  }
-  const deleteBtn = event.target instanceof Element ? event.target.closest('[data-delete-group]') : null;
-  if (deleteBtn) {
-    deleteGroup(deleteBtn.dataset.deleteGroup);
-  }
-}
-
-function handleRowDragStart(event) {
-  const handle = event.target instanceof Element ? event.target.closest('[data-drag-handle]') : null;
-  if (!handle) return;
-  const row = handle.closest('tr[data-emp-row]');
-  if (!row) return;
-  draggingRowId = row.dataset.empRow;
-  row.classList.add('dragging');
-  event.dataTransfer.setData('text/plain', draggingRowId);
-  event.dataTransfer.effectAllowed = 'move';
-}
-
-function handleRowDragOver(event) {
-  if (!draggingRowId) return;
-  const row = event.target instanceof Element ? event.target.closest('tr[data-emp-row]') : null;
-  if (!row || row.dataset.empRow === draggingRowId) return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-}
-
-function handleRowDrop(event) {
-  if (!draggingRowId) return;
-  const row = event.target instanceof Element ? event.target.closest('tr[data-emp-row]') : null;
-  if (!row || row.dataset.empRow === draggingRowId) return;
-  event.preventDefault();
-  const targetId = row.dataset.empRow;
-  const rect = row.getBoundingClientRect();
-  const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-  reorderRows(draggingRowId, targetId, position);
-  finishRowDrag();
-}
-
-function handleRowDragEnd() {
-  finishRowDrag();
-}
-
-function finishRowDrag() {
-  const active = rosterTable.querySelector('tr.dragging');
-  if (active) active.classList.remove('dragging');
-  draggingRowId = null;
-}
-
-function reorderRows(sourceId, targetId, position) {
-  if (sourceId === targetId) return;
-  const order = state.layout.order.filter((id) => id !== sourceId);
-  const targetIndex = order.indexOf(targetId);
-  const insertIndex = targetIndex === -1 ? order.length : targetIndex + (position === 'after' ? 1 : 0);
-  order.splice(insertIndex, 0, sourceId);
-  state.layout.order = order;
-  const emp = state.employees.find((e) => e.id === sourceId);
-  appendLog('roster', `Zeile ${emp ? formatName(emp) : sourceId} verschoben.`);
-  saveState();
-  renderRoster();
 }
 
 function ensureMonthMaps(monthKey) {
@@ -2622,21 +463,6 @@ function ensureMonthMaps(monthKey) {
 }
 
 function handleRosterChange(e) {
-  if (
-    rosterMode === 'view' &&
-    (e.target.matches('select[data-emp]') || e.target.matches('input[type="checkbox"][data-lock]'))
-  ) {
-    e.preventDefault();
-    return;
-  }
-  if (e.target.matches('input[type="checkbox"][data-row-select]')) {
-    const id = e.target.dataset.rowSelect;
-    if (!id) return;
-    if (e.target.checked) selectedRows.add(id);
-    else selectedRows.delete(id);
-    updateRowToolStates();
-    return;
-  }
   if (e.target.matches('select[data-emp]')) {
     const emp = e.target.dataset.emp;
     const day = Number(e.target.dataset.day);
@@ -2645,7 +471,6 @@ function handleRosterChange(e) {
     if (!state.assignments[monthKey][emp]) state.assignments[monthKey][emp] = {};
     state.assignments[monthKey][emp][day] = e.target.value;
     saveState();
-    renderRoster();
   }
 
   if (e.target.matches('input[type="checkbox"][data-lock]')) {
@@ -2658,66 +483,32 @@ function handleRosterChange(e) {
     const select = document.querySelector(`select[data-emp="${emp}"][data-day="${day}"]`);
     if (select) select.disabled = e.target.checked;
     saveState();
-    renderRoster();
   }
+}
+
+function countWeekends(monthKey, empId) {
+  const assignments = state.assignments[monthKey]?.[empId] || {};
+  return Object.entries(assignments).filter(([day, serviceId]) => {
+    if (!serviceId) return false;
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
+    return isWeekend(d);
+  }).length;
 }
 
 function countNights(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
   return Object.values(assignments).filter((serviceId) => {
     const service = state.services.find((s) => s.id === serviceId);
-    return isNightService(service);
+    return service && /nacht/i.test(service.name);
   }).length;
-}
-
-function isNightService(service) {
-  if (!service) return false;
-  if (typeof service.isNight === 'boolean') return service.isNight;
-  return /nacht/i.test(service.name);
-}
-
-function specialShiftStats(monthKey, empId) {
-  const assignments = state.assignments[monthKey]?.[empId] || {};
-  let nights = 0;
-  let holidayShifts = 0;
-  Object.entries(assignments).forEach(([day, serviceId]) => {
-    const service = state.services.find((s) => s.id === serviceId);
-    if (!service) return;
-    if (isNightService(service)) nights++;
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
-    if (isHoliday(date) || date.getDay() === 0) holidayShifts++;
-  });
-  return { nights, holidayShifts };
 }
 
 function hoursForEmployee(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
-  let total = Object.values(assignments).reduce((sum, serviceId) => {
+  return Object.values(assignments).reduce((sum, serviceId) => {
     const service = state.services.find((s) => s.id === serviceId);
     return service ? sum + serviceDuration(service) : sum;
   }, 0);
-  const emp = state.employees.find((e) => e.id === empId);
-  const baseDate = monthKeyToDate(monthKey);
-  if (!emp || !baseDate) return total;
-  const days = daysInMonth(baseDate);
-  const holidayFactor = Number(emp.holidayFactor) || 0;
-  const dailyHours = Number(emp.dailyWorkHours) || 0;
-  for (let day = 1; day <= days; day++) {
-    const date = new Date(baseDate.getFullYear(), baseDate.getMonth(), day);
-    if (holidayFactor && isHoliday(date) && isEmployeeActiveOnDate(emp, date)) {
-      total += holidayFactor;
-    }
-    if (dailyHours) {
-      const vacationEntry = findVacationOnDate(emp, date);
-      const sickEntry = findSickOnDate(emp, date);
-      if (vacationEntry && usesDailyHoursForVacation(vacationEntry) && isEmployeeActiveOnDate(emp, date)) {
-        total += dailyHours;
-      } else if (sickEntry && usesDailyHoursForSick(sickEntry) && isEmployeeActiveOnDate(emp, date)) {
-        total += dailyHours;
-      }
-    }
-  }
-  return total;
 }
 
 function workedRecently(empId, day, restDays) {
@@ -2736,111 +527,48 @@ function generateRoster() {
   ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
   const rules = state.rules;
-  const totalWeekends = totalWeekendsInMonth(currentMonth);
-  const minFreeWeekends = Number(rules.minFreeWeekends) || 0;
-  const allowedWorkedWeekends = Math.max(totalWeekends - minFreeWeekends, 0);
-  const orderedEmployees = getOrderedEmployees().filter((emp) => isEmployeeActiveInMonth(emp, currentMonth));
-  const rawPivot = Number(state.layout?.generatorPivot) || 0;
-  const pivot = orderedEmployees.length ? rawPivot % orderedEmployees.length : 0;
-  const rotated = orderedEmployees.slice(pivot).concat(orderedEmployees.slice(0, pivot));
-  const fairnessIndex = new Map();
-  rotated.forEach((emp, index) => fairnessIndex.set(emp.id, index));
-  const weekendSets = new Map();
-  const getWeekendSet = (empId) => {
-    if (!weekendSets.has(empId)) {
-      weekendSets.set(empId, workedWeekendSet(monthKey, empId));
-    }
-    return weekendSets.get(empId);
-  };
 
   // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
   state.employees.forEach((emp) => {
     if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
-    if (!state.locks[monthKey][emp.id]) state.locks[monthKey][emp.id] = {};
     for (let day = 1; day <= days; day++) {
       const locked = state.locks[monthKey]?.[emp.id]?.[day];
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const vacationEntry = findVacationOnDate(emp, date);
-      const sickEntry = findSickOnDate(emp, date);
-      const keepAssignment =
-        (vacationEntry && VACATION_TYPES[vacationEntry.type]?.clearsAssignments === false) ||
-        (sickEntry && SICK_TYPES[sickEntry.kind]?.clearsAssignments === false);
-      if (!locked && !keepAssignment) {
+      if (!locked) {
         delete state.assignments[monthKey][emp.id][day];
       }
     }
   });
 
   for (let day = 1; day <= days; day++) {
-    const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const servicesForDay = getRequiredServicesForDate(currentDate);
-    servicesForDay.forEach((service) => {
-      const serviceHours = serviceDuration(service);
-      const tolerance = serviceHours / 2;
-      const candidates = rotated
-        .map((emp) => {
-          if (!isEmployeeActiveOnDate(emp, currentDate)) return null;
+    for (const service of state.services) {
+      state.employees
+        .filter((emp) => {
           const func = state.functions.find((f) => f.id === emp.functionId);
-          if (!Array.isArray(func?.serviceIds) || !func.serviceIds.includes(service.id)) return null;
-          if (findVacationOnDate(emp, currentDate)) return null;
-          if (findSickOnDate(emp, currentDate)) return null;
-          if (isNightService(service) && !emp.nightAllowed) return null;
-          const empAssignments = state.assignments[monthKey][emp.id] || {};
-          const locked = state.locks[monthKey]?.[emp.id]?.[day];
-          if (locked || empAssignments[day]) return null;
-          if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return null;
-          if (isNightService(service) && !emp.doubleNights) {
-            const prevServiceId = empAssignments[day - 1];
-            if (prevServiceId) {
-              const prevService = state.services.find((s) => s.id === prevServiceId);
-              if (isNightService(prevService)) return null;
-            }
-          }
-          const targetHours = monthlyTargetHours(emp, currentMonth);
-          if (!targetHours) return null;
-          const assignedHours = hoursForEmployee(monthKey, emp.id);
-          const projectedHours = assignedHours + serviceHours;
-          const projectedRemaining = targetHours - projectedHours;
-          if (projectedRemaining < -tolerance) return null;
-          const nextNights = countNights(monthKey, emp.id) + (isNightService(service) ? 1 : 0);
-          if (rules.maxNights && nextNights > rules.maxNights) return null;
-          if (isWeekend(currentDate)) {
-            const weekendKey = weekendKeyForDate(currentDate);
-            const set = getWeekendSet(emp.id);
-            if (weekendKey && !set.has(weekendKey) && set.size >= allowedWorkedWeekends) {
-              return null;
-            }
-          }
-          const remainingBefore = targetHours - assignedHours;
-          return {
-            emp,
-            absRemaining: Math.abs(projectedRemaining),
-            remainingBefore,
-            projectedRemaining,
-            fairness: fairnessIndex.get(emp.id) || 0,
-          };
+          const allowed = func?.serviceIds.includes(service.id);
+          const isNight = /nacht/i.test(service.name);
+          if (isNight && !emp.nightAllowed) return false;
+          return allowed;
         })
-        .filter(Boolean)
-        .sort((a, b) => {
-          if (a.absRemaining !== b.absRemaining) return a.absRemaining - b.absRemaining;
-          if (a.remainingBefore !== b.remainingBefore) return b.remainingBefore - a.remainingBefore;
-          return a.fairness - b.fairness;
+        .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
+        .some((emp) => {
+          ensureMonthMaps(monthKey);
+          const locked = state.locks[monthKey]?.[emp.id]?.[day];
+          if (locked) return false;
+          if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
+          const already = state.assignments[monthKey][emp.id][day];
+          if (already) return false;
+          if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return false;
+          const nextHours = hoursForEmployee(monthKey, emp.id) + serviceDuration(service);
+          if (rules.maxHoursMonth && nextHours > rules.maxHoursMonth) return false;
+          const nextWeekends = countWeekends(monthKey, emp.id) + (isWeekend(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)) ? 1 : 0);
+          if (rules.maxWeekendDays && nextWeekends > rules.maxWeekendDays) return false;
+          const nextNights = countNights(monthKey, emp.id) + (/nacht/i.test(service.name) ? 1 : 0);
+          if (rules.maxNights && nextNights > rules.maxNights) return false;
+          state.assignments[monthKey][emp.id][day] = service.id;
+          return true;
         });
-      candidates.some(({ emp }) => {
-        state.assignments[monthKey][emp.id][day] = service.id;
-        if (isWeekend(currentDate)) {
-          const weekendKey = weekendKeyForDate(currentDate);
-          if (weekendKey) {
-            getWeekendSet(emp.id).add(weekendKey);
-          }
-        }
-        return true;
-      });
-    });
+    }
   }
-  const label = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
-  state.layout.generatorPivot = rotated.length ? (pivot + 1) % rotated.length : 0;
-  appendLog('roster', `Dienstplan für ${label} generiert.`);
   saveState();
   renderRoster();
 }
@@ -2859,16 +587,12 @@ function handleEmployeePickerChange() {
   if (!id) {
     editing.employee = null;
     employeeForm.reset();
-    renderVacationPanel(null);
-    renderSickPanel(null);
     return;
   }
   const emp = state.employees.find((e) => e.id === id);
   if (emp) {
     editing.employee = id;
     fillEmployeeForm(emp);
-    renderVacationPanel(emp);
-    renderSickPanel(emp);
   }
 }
 
@@ -2920,120 +644,35 @@ function handleEmploymentPickerChange() {
 function wireEvents() {
   menuButtons.forEach((btn) => btn.addEventListener('click', () => showScreen(btn.dataset.target)));
   employeeForm.addEventListener('submit', handleEmployeeForm);
-  employeeForm.addEventListener('reset', handleEmployeeFormReset);
   serviceForm.addEventListener('submit', handleServiceForm);
   functionForm.addEventListener('submit', handleFunctionForm);
   employmentForm.addEventListener('submit', handleEmploymentForm);
   rulesForm.addEventListener('submit', handleRulesForm);
   rosterTable.addEventListener('change', handleRosterChange);
-  rosterTable.addEventListener('click', handleRosterClick);
-  rosterTable.addEventListener('dragstart', handleRowDragStart);
-  rosterTable.addEventListener('dragover', handleRowDragOver);
-  rosterTable.addEventListener('drop', handleRowDrop);
-  rosterTable.addEventListener('dragend', handleRowDragEnd);
   employeePicker.addEventListener('change', handleEmployeePickerChange);
   servicePicker.addEventListener('change', handleServicePickerChange);
   functionPicker.addEventListener('change', handleFunctionPickerChange);
   employmentPicker.addEventListener('change', handleEmploymentPickerChange);
-  prevMonthBtn.addEventListener('click', () => {
-    currentMonth.setMonth(currentMonth.getMonth() - 1);
-    renderRoster();
-    renderEmployees();
-  });
-  nextMonthBtn.addEventListener('click', () => {
-    currentMonth.setMonth(currentMonth.getMonth() + 1);
-    renderRoster();
-    renderEmployees();
-  });
+  prevMonthBtn.addEventListener('click', () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderRoster(); });
+  nextMonthBtn.addEventListener('click', () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderRoster(); });
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') {
-      currentMonth.setMonth(currentMonth.getMonth() - 1);
-      renderRoster();
-      renderEmployees();
-    }
-    if (e.key === 'ArrowRight') {
-      currentMonth.setMonth(currentMonth.getMonth() + 1);
-      renderRoster();
-      renderEmployees();
-    }
+    if (e.key === 'ArrowLeft') { currentMonth.setMonth(currentMonth.getMonth() - 1); renderRoster(); }
+    if (e.key === 'ArrowRight') { currentMonth.setMonth(currentMonth.getMonth() + 1); renderRoster(); }
   });
   generateBtn.addEventListener('click', generateRoster);
-  saveFileBtn.addEventListener('click', downloadStateFile);
-  loadFileBtn.addEventListener('click', () => loadFileInput.click());
-  loadFileInput.addEventListener('change', (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    file.text().then(importState).finally(() => {
-      loadFileInput.value = '';
-    });
-  });
-  if (addVacationBtn) addVacationBtn.addEventListener('click', handleAddVacation);
-  if (vacationTypeSelect) vacationTypeSelect.addEventListener('change', updateVacationReasonVisibility);
-  if (vacationList) vacationList.addEventListener('click', handleVacationListClick);
-  if (addSickBtn) addSickBtn.addEventListener('click', handleAddSick);
-  if (sickList) {
-    sickList.addEventListener('click', handleSickListClick);
-    sickList.addEventListener('change', handleSickListChange);
-  }
-  if (vacationLimitForm) vacationLimitForm.addEventListener('submit', handleVacationLimitSubmit);
-  if (vacationLimitList) vacationLimitList.addEventListener('click', handleVacationLimitListClick);
-  if (themeToggle) {
-    themeToggle.addEventListener('click', () => applyTheme(currentTheme === 'light' ? 'dark' : 'light'));
-  }
-  if (rosterModeButtons.length) {
-    rosterModeButtons.forEach((btn) => {
-      btn.addEventListener('click', () => setRosterMode(btn.dataset.rosterMode || 'edit'));
-    });
-  }
-  if (printPlanBtn) {
-    printPlanBtn.addEventListener('click', handlePrintPlan);
-  }
-  if (createGroupBtn) createGroupBtn.addEventListener('click', handleCreateGroup);
-  if (assignGroupBtn) assignGroupBtn.addEventListener('click', handleAssignGroup);
-  if (removeGroupBtn) removeGroupBtn.addEventListener('click', handleRemoveGroup);
-  if (groupSelect) groupSelect.addEventListener('change', updateRowToolStates);
   syncEmploymentHours();
 }
 
-function handlePrintPlan() {
-  if (typeof window === 'undefined') return;
-  if (rosterMode !== 'view') {
-    modeBeforePrint = rosterMode;
-    setRosterMode('view');
-  } else {
-    modeBeforePrint = null;
-  }
-  window.print();
-}
-
 function init() {
-  applyTheme(currentTheme);
   updateDropdowns();
   showScreen('roster');
   renderEmployees();
   renderServices();
   renderFunctions();
   renderEmployment();
-  setupWeekdayInteractions();
   renderRules();
   renderRoster();
-  renderLogs();
-  updateVacationReasonVisibility();
   wireEvents();
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('afterprint', () => {
-    if (modeBeforePrint) {
-      const restore = modeBeforePrint;
-      modeBeforePrint = null;
-      setRosterMode(restore);
-    }
-  });
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+init();

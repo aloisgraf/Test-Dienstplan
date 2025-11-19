@@ -6,69 +6,23 @@
   <title>Dienstplan-Admin</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-theme">
+<body>
   <header class="page-header">
     <div>
       <p class="eyebrow">Dienstplanung · Salzburg</p>
       <h1>Dienstplan- und Admin-Console</h1>
-    </div>
-    <div class="theme-toggle">
-      <span>Darstellung</span>
-      <button type="button" id="themeToggle" class="ghost">Heller Modus</button>
+      <p class="lede">Verwalte Mitarbeitende, Dienste, Funktionen, Anstellungsverhältnisse und Regeln. Generiere den Monatsplan und passe einzelne Zellen mit Sperrfunktion an.</p>
     </div>
   </header>
 
   <main class="layout">
     <nav class="main-menu" aria-label="Hauptmenü">
-      <details class="menu-accordion" open>
-        <summary>
-          <span class="menu-icon" aria-hidden="true">📅</span>
-          <span>Dienstplan</span>
-        </summary>
-        <div class="menu-accordion__body">
-          <div class="menu-group__items">
-            <button type="button" data-target="roster" class="active">Dienstplan</button>
-            <button type="button" data-target="employees" id="menuEmployeesBtn">Mitarbeiter<span class="alert-indicator" id="menuEmployeeAlert" aria-hidden="true" hidden></span></button>
-            <button type="button" data-target="services">Dienste</button>
-            <button type="button" data-target="functions">Funktionen</button>
-            <button type="button" data-target="employment">Anstellungsverhältnisse</button>
-            <button type="button" data-target="rules">Regeln</button>
-          </div>
-          <div class="menu-row-tools" id="rowToolsMenu" hidden>
-            <p class="eyebrow">Zeilen &amp; Gruppen</p>
-            <div class="row-tool-buttons">
-              <button type="button" id="createGroupBtn" class="ghost" disabled>Neue Gruppe</button>
-              <div class="group-picker">
-                <label for="groupSelect" class="sr-only">Gruppe auswählen</label>
-                <select id="groupSelect">
-                  <option value="">Gruppe wählen…</option>
-                </select>
-                <button type="button" id="assignGroupBtn" class="ghost" disabled>Zu Gruppe</button>
-              </div>
-              <button type="button" id="removeGroupBtn" class="ghost" disabled>Aus Gruppe lösen</button>
-            </div>
-          </div>
-          <div class="menu-file-actions" aria-label="Datenspeicherung">
-            <p class="eyebrow">Datenablage</p>
-            <div class="file-actions__buttons">
-              <button type="button" id="saveFile" class="ghost">Speichern als Datei</button>
-              <button type="button" id="loadFile" class="ghost">Datei laden</button>
-              <input type="file" id="loadFileInput" accept="application/json" hidden>
-            </div>
-          </div>
-        </div>
-      </details>
-      <details class="menu-accordion">
-        <summary>
-          <span class="menu-icon" aria-hidden="true">🎟️</span>
-          <span>Tickets</span>
-        </summary>
-        <div class="menu-accordion__body">
-          <div class="menu-group__items">
-            <button type="button" data-target="tickets">Tickets</button>
-          </div>
-        </div>
-      </details>
+      <button type="button" data-target="roster" class="active">Dienstplan</button>
+      <button type="button" data-target="employees">Mitarbeitende</button>
+      <button type="button" data-target="services">Dienste</button>
+      <button type="button" data-target="functions">Funktionen</button>
+      <button type="button" data-target="employment">Anstellungsverhältnisse</button>
+      <button type="button" data-target="rules">Regeln</button>
     </nav>
 
     <div class="content-area">
@@ -80,38 +34,21 @@
             <p class="muted">Navigation mit Pfeiltasten ←/→ möglich. Samstage sind hellgrau, Sonntage dunkelgrau, Feiertage in Salzburg gelb.</p>
           </div>
           <div class="actions">
-            <div class="mode-toggle" id="rosterModeToggle">
-              <button type="button" class="ghost active" data-roster-mode="edit">Dienstplan bearbeiten</button>
-              <button type="button" class="ghost" data-roster-mode="view">Dienstplan Ansicht</button>
-            </div>
             <div class="month-controls">
               <button type="button" id="prevMonth" class="ghost">◀</button>
               <button type="button" id="nextMonth" class="ghost">▶</button>
             </div>
             <button id="generatePlan" type="button" class="primary">Dienstplan generieren</button>
-            <button id="printPlan" type="button" class="ghost">Dienstplan drucken</button>
           </div>
         </div>
         <div class="table-wrapper roster">
           <table id="rosterTable" aria-describedby="monthLabel"></table>
         </div>
-        <div id="serviceLegend" class="service-legend"></div>
-        <section class="overview-block roster-vacations">
-          <div class="overview-header">
-            <p class="eyebrow">Urlaubsbelegung</p>
-            <h3>Auslastung pro Tag</h3>
-          </div>
-          <div id="vacationChart" class="vacation-chart" aria-live="polite"></div>
-        </section>
-        <details class="log-panel">
-          <summary>Log anzeigen</summary>
-          <ul id="rosterLog" class="log-list"></ul>
-        </details>
       </section>
 
       <section class="panel admin" data-screen="employees" hidden>
         <div class="panel__header">
-          <h2>Mitarbeiter</h2>
+          <h2>Mitarbeitende</h2>
         </div>
         <div class="admin-panel">
           <div class="picker-row">
@@ -133,16 +70,8 @@
             <label>Funktion
               <select name="functionId" id="functionSelect"></select>
             </label>
-            <label>Eintrittsdatum<input type="date" name="hireDate"></label>
-            <label>Austrittsdatum<input type="date" name="endDate"></label>
-            <label>Durchrechnungsfaktor<input type="number" name="holidayFactor" min="0" step="0.25" value="0"></label>
-            <label>Tägliche Sollarbeitszeit<input type="number" name="dailyWorkHours" min="0" step="0.25" value="0"></label>
-            <label>Urlaubstage pro Jahr<input type="number" name="vacationDays" min="0" step="1" required></label>
             <label class="checkbox">
               <input type="checkbox" name="nightAllowed"> Nachtdienst Ja/Nein
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" name="doubleNights"> Doppelnächte
             </label>
             <label class="checkbox">
               <input type="checkbox" name="rkt"> RKT Ja/Nein
@@ -152,61 +81,7 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <div class="vacation-panel" id="vacationPanel" hidden>
-            <div class="vacation-panel__header">
-              <h3>Urlaube</h3>
-              <p class="muted" id="vacationBalance"></p>
-            </div>
-            <div class="vacation-controls">
-              <label>Von<input type="date" id="vacationStart"></label>
-              <label>Bis<input type="date" id="vacationEnd"></label>
-              <label>Art
-                <select id="vacationType">
-                  <option value="vacation">Urlaub</option>
-                  <option value="special">Sonderurlaub</option>
-                  <option value="special2">Sonderurlaub 2</option>
-                </select>
-              </label>
-              <label id="vacationReasonWrapper" class="hidden">Grund
-                <input type="text" id="vacationReason" placeholder="Begründung">
-              </label>
-              <button type="button" id="addVacation" class="ghost">Urlaub hinzufügen</button>
-            </div>
-            <ul id="vacationList" class="vacation-list"></ul>
-          </div>
-          <div class="vacation-panel" id="sickPanel" hidden>
-            <div class="vacation-panel__header">
-              <h3>Krankenstände</h3>
-            </div>
-            <div class="vacation-controls">
-              <label>Von<input type="date" id="sickStart"></label>
-              <label>Bis<input type="date" id="sickEnd"></label>
-              <label>Art
-                <select id="sickType">
-                  <option value="sick">Krankenstand</option>
-                  <option value="care">Pflegeurlaub</option>
-                  <option value="care2">Pflegeurlaub 2</option>
-                </select>
-              </label>
-              <button type="button" id="addSick" class="ghost">Krankenstand hinzufügen</button>
-            </div>
-            <ul id="sickList" class="vacation-list"></ul>
-          </div>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Übersicht</p>
-              <h3>Gespeicherte Mitarbeiter</h3>
-            </div>
-            <div class="list" id="employeeList" aria-live="polite"></div>
-          </section>
-          <section class="overview-block">
-            <div class="overview-header">
-              <span class="alert-indicator" id="openSickIndicator" aria-hidden="true" hidden></span>
-              <p class="eyebrow">Offene Krankmeldungen</p>
-              <h3>Rückmeldungen ausständig</h3>
-            </div>
-            <div class="list" id="openSickList" aria-live="polite"></div>
-          </section>
+          <div class="list" id="employeeList" aria-live="polite"></div>
         </div>
       </section>
 
@@ -224,19 +99,12 @@
             <label>Dienstname<input name="name" required placeholder="z.B. NCN"></label>
             <label>Beginn<input type="time" name="start" required></label>
             <label>Ende<input type="time" name="end" required></label>
-            <label class="checkbox"><input type="checkbox" name="isNight"> Nachtdienst</label>
             <div class="form-actions">
               <button type="submit" class="primary">Dienst speichern</button>
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Übersicht</p>
-              <h3>Gespeicherte Dienste</h3>
-            </div>
-            <div class="list" id="serviceList" aria-live="polite"></div>
-          </section>
+          <div class="list" id="serviceList" aria-live="polite"></div>
         </div>
       </section>
 
@@ -260,13 +128,7 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Übersicht</p>
-              <h3>Gespeicherte Funktionen</h3>
-            </div>
-            <div class="list" id="functionList" aria-live="polite"></div>
-          </section>
+          <div class="list" id="functionList" aria-live="polite"></div>
         </div>
       </section>
 
@@ -288,13 +150,7 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Übersicht</p>
-              <h3>Gespeicherte Anstellungsverhältnisse</h3>
-            </div>
-            <div class="list" id="employmentList" aria-live="polite"></div>
-          </section>
+          <div class="list" id="employmentList" aria-live="polite"></div>
         </div>
       </section>
 
@@ -306,146 +162,19 @@
           <form id="rulesForm" class="grid">
             <label>Ruhetage nach Dienst (Tage)<input type="number" name="restDays" min="0" step="1"></label>
             <label>Max. Arbeitszeit pro Woche (Stunden)<input type="number" name="maxHoursWeek" min="0" step="1"></label>
-            <label>Freizuhaltende Wochenenden (Anzahl)<input type="number" name="minFreeWeekends" min="0" step="1"></label>
+            <label>Max. Arbeitszeit pro Monat (Stunden)<input type="number" name="maxHoursMonth" min="0" step="1"></label>
+            <label>Max. Wochenenden verplant (Tage)<input type="number" name="maxWeekendDays" min="0" step="1"></label>
             <label>Max. Nachtdienste<input type="number" name="maxNights" min="0" step="1"></label>
-            <label>Standard Urlaubskapazität pro Tag<input type="number" name="vacationDefault" id="vacationDefault" min="0" step="1"></label>
-            <div class="weekday-services">
-              <p class="eyebrow">Pflichtdienste pro Wochentag</p>
-              <div class="weekday-meta">
-                <label>Gültig ab<input type="date" name="weekdayRangeStart" id="weekdayRangeStart"></label>
-                <label>Gültig bis<input type="date" name="weekdayRangeEnd" id="weekdayRangeEnd"></label>
-              </div>
-              <div class="weekday-grid">
-                <div class="weekday-field" data-weekday-field="1">
-                  <strong>Montag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="1"></select>
-                    <button type="button" data-weekday-add="1">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="1"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="2">
-                  <strong>Dienstag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="2"></select>
-                    <button type="button" data-weekday-add="2">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="2"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="3">
-                  <strong>Mittwoch</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="3"></select>
-                    <button type="button" data-weekday-add="3">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="3"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="4">
-                  <strong>Donnerstag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="4"></select>
-                    <button type="button" data-weekday-add="4">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="4"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="5">
-                  <strong>Freitag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="5"></select>
-                    <button type="button" data-weekday-add="5">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="5"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="6">
-                  <strong>Samstag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="6"></select>
-                    <button type="button" data-weekday-add="6">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="6"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="0">
-                  <strong>Sonntag</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="0"></select>
-                    <button type="button" data-weekday-add="0">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="0"></div>
-                </div>
-                <div class="weekday-field" data-weekday-field="holiday">
-                  <strong>Feiertage (Salzburg)</strong>
-                  <div class="weekday-controls">
-                    <select data-weekday-select="holiday"></select>
-                    <button type="button" data-weekday-add="holiday">Hinzufügen</button>
-                  </div>
-                  <div class="weekday-chips" data-weekday-list="holiday"></div>
-                </div>
-              </div>
-            </div>
             <div class="form-actions">
               <button type="submit" class="primary">Regeln speichern</button>
             </div>
           </form>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Aktive Pflichtdienste</p>
-              <h3>Historie</h3>
-            </div>
-            <div class="list" id="weekdayHistory" aria-live="polite"></div>
-          </section>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Übersicht</p>
-              <h3>Regelzusammenfassung</h3>
-            </div>
-            <div class="list" id="rulesSummary" aria-live="polite"></div>
-          </section>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Urlaubskapazitäten</p>
-              <h3>Ausnahmen verwalten</h3>
-            </div>
-            <form id="vacationLimitForm" class="vacation-limit-form">
-              <label>Datum von
-                <input type="date" id="vacationLimitStart">
-              </label>
-              <label>Datum bis
-                <input type="date" id="vacationLimitEnd">
-              </label>
-              <label>Max. Urlauber*innen
-                <input type="number" id="vacationLimitValue" min="0" step="1">
-              </label>
-              <div class="form-actions">
-                <button type="submit" class="ghost">Ausnahme speichern</button>
-              </div>
-            </form>
-            <div class="list" id="vacationLimitList" aria-live="polite"></div>
-          </section>
-        </div>
-      </section>
-
-      <section class="panel admin" data-screen="tickets" hidden>
-        <div class="panel__header">
-          <h2>Tickets</h2>
-          <p class="muted">Verwalte Änderungs- oder Supportanfragen (Platzhalter).</p>
-        </div>
-        <div class="admin-panel">
-          <p class="muted">Die Ticketverwaltung wird nach Bedarf ausgebaut. Bis dahin dient der Log als Sammelstelle für Ereignisse.</p>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Aktivität</p>
-              <h3>Tickets-Log</h3>
-            </div>
-            <details class="log-panel inline-log">
-              <summary>Log anzeigen</summary>
-              <ul id="ticketLog" class="log-list"></ul>
-            </details>
-          </section>
+          <div class="list" id="rulesSummary" aria-live="polite"></div>
         </div>
       </section>
     </div>
   </main>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
