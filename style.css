@@ -132,7 +132,13 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 .table-wrapper { overflow: auto; border: 1px solid var(--border); border-radius: .75rem; }
 .table-wrapper.roster { padding: .5rem; background: #0b1224; }
 
-#rosterTable { border-collapse: collapse; width: 100%; min-width: 900px; color: var(--text); }
+#rosterTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 900px;
+  color: var(--text);
+}
 #rosterTable th, #rosterTable td { border: 1px solid #1f2937; padding: .4rem .45rem; text-align: center; font-size: .9rem; }
 #rosterTable th { background: #0f172a; position: sticky; top: 0; z-index: 2; }
 #rosterTable th.names { position: sticky; left: 0; z-index: 3; background: #0b1224; }
@@ -147,9 +153,10 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 .saturday { background: var(--saturday); }
 .holiday { background: var(--holiday); color: #0f172a; }
 
-.cell { display: grid; gap: .35rem; }
+.cell { display: flex; flex-direction: column; gap: .35rem; }
 .cell select { width: 100%; }
 .cell .lock { display: inline-flex; align-items: center; gap: .4rem; justify-content: center; font-size: .8rem; }
+.cell .inactive { color: var(--muted); font-weight: 600; }
 
 .muted { color: var(--muted); margin: 0; }
 .roster-header { align-items: flex-start; gap: .5rem; }

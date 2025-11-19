@@ -11,28 +11,69 @@ const STORAGE_KEYS = {
 const clone = (value) =>
   typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 
+const uuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+
 const DEFAULT_EMPLOYMENT = [
-  { id: crypto.randomUUID(), percent: 100, hours: 173 },
-  { id: crypto.randomUUID(), percent: 80, hours: 138 },
-  { id: crypto.randomUUID(), percent: 50, hours: 86 },
+  { id: uuid(), percent: 100, hours: 173 },
+  { id: uuid(), percent: 80, hours: 138 },
+  { id: uuid(), percent: 50, hours: 86 },
 ];
 
 const DEFAULT_SERVICES = [
-  { id: crypto.randomUUID(), name: 'NCN', start: '19:00', end: '07:00' },
-  { id: crypto.randomUUID(), name: 'NdN', start: '19:00', end: '07:00' },
-  { id: crypto.randomUUID(), name: 'ND1', start: '07:00', end: '19:00' },
-  { id: crypto.randomUUID(), name: 'C1', start: '07:00', end: '19:00' },
+  { id: uuid(), name: 'NCN', start: '19:00', end: '07:00' },
+  { id: uuid(), name: 'NdN', start: '19:00', end: '07:00' },
+  { id: uuid(), name: 'ND1', start: '07:00', end: '19:00' },
+  { id: uuid(), name: 'C1', start: '07:00', end: '19:00' },
 ];
 
 const DEFAULT_FUNCTIONS = (services) => [
-  { id: crypto.randomUUID(), name: 'Disponent*in', serviceIds: services.filter((s) => s.name.toLowerCase().includes('d')).map((s) => s.id) },
-  { id: crypto.randomUUID(), name: 'Calltaker', serviceIds: services.filter((s) => s.name.toLowerCase().includes('c')).map((s) => s.id) },
+  { id: uuid(), name: 'Disponent*in', serviceIds: services.filter((s) => s.name.toLowerCase().includes('d')).map((s) => s.id) },
+  { id: uuid(), name: 'Calltaker', serviceIds: services.filter((s) => s.name.toLowerCase().includes('c')).map((s) => s.id) },
 ];
 
 const DEFAULT_EMPLOYEES = (employment, functions) => [
-  { id: crypto.randomUUID(), firstName: 'Alex', lastName: 'Huber', personnelNumber: '1001', birthday: '1988-05-12', employmentPercent: employment[0].id, employmentHours: employment[0].id, functionId: functions[0].id, nightAllowed: true, rkt: false },
-  { id: crypto.randomUUID(), firstName: 'Bianca', lastName: 'Mayr', personnelNumber: '1002', birthday: '1990-09-02', employmentPercent: employment[1].id, employmentHours: employment[1].id, functionId: functions[1].id, nightAllowed: true, rkt: true },
-  { id: crypto.randomUUID(), firstName: 'Chris', lastName: 'Lenz', personnelNumber: '1003', birthday: '1992-03-21', employmentPercent: employment[2].id, employmentHours: employment[2].id, functionId: functions[0].id, nightAllowed: false, rkt: false },
+  {
+    id: uuid(),
+    firstName: 'Alex',
+    lastName: 'Huber',
+    personnelNumber: '1001',
+    birthday: '1988-05-12',
+    entryDate: '',
+    exitDate: '',
+    employmentPercent: employment[0].id,
+    employmentHours: employment[0].id,
+    functionId: functions[0].id,
+    nightAllowed: true,
+    rkt: false,
+  },
+  {
+    id: uuid(),
+    firstName: 'Bianca',
+    lastName: 'Mayr',
+    personnelNumber: '1002',
+    birthday: '1990-09-02',
+    entryDate: '',
+    exitDate: '',
+    employmentPercent: employment[1].id,
+    employmentHours: employment[1].id,
+    functionId: functions[1].id,
+    nightAllowed: true,
+    rkt: true,
+  },
+  {
+    id: uuid(),
+    firstName: 'Chris',
+    lastName: 'Lenz',
+    personnelNumber: '1003',
+    birthday: '1992-03-21',
+    entryDate: '',
+    exitDate: '',
+    employmentPercent: employment[2].id,
+    employmentHours: employment[2].id,
+    functionId: functions[0].id,
+    nightAllowed: false,
+    rkt: false,
+  },
 ];
 
 const DEFAULT_RULES = { restDays: 1, maxHoursWeek: 40, maxHoursMonth: 173, maxWeekendDays: 6, maxNights: 8 };
@@ -153,6 +194,24 @@ function weekdayLabel(date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long' });
 }
 
+function monthStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function monthEnd(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function isEmployeeFullMonth(emp, date) {
+  const start = monthStart(date);
+  const end = monthEnd(date);
+  const entry = emp.entryDate ? new Date(emp.entryDate) : null;
+  const exit = emp.exitDate ? new Date(emp.exitDate) : null;
+  if (entry && entry > start) return false;
+  if (exit && exit < end) return false;
+  return true;
+}
+
 function isWeekend(date) {
   const w = date.getDay();
   return w === 0 || w === 6;
@@ -173,6 +232,19 @@ function serviceDuration(service) {
   const end = parseTime(service.end);
   const duration = end >= start ? end - start : 24 - start + end;
   return Math.max(duration, 0);
+}
+
+function getWeekendKey(date) {
+  const day = date.getDay();
+  if (day === 6) {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  }
+  if (day === 0) {
+    const saturday = new Date(date);
+    saturday.setDate(date.getDate() - 1);
+    return `${saturday.getFullYear()}-${saturday.getMonth()}-${saturday.getDate()}`;
+  }
+  return null;
 }
 
 function updateDropdowns() {
@@ -208,7 +280,10 @@ function renderEmployees() {
     const percent = state.employment.find((e) => e.id === emp.employmentPercent);
     const hours = state.employment.find((e) => e.id === emp.employmentHours);
     const func = state.functions.find((f) => f.id === emp.functionId);
-    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
+    const dates = [emp.entryDate ? `Eintritt ${emp.entryDate}` : '', emp.exitDate ? `Austritt ${emp.exitDate}` : '']
+      .filter(Boolean)
+      .join(' · ');
+    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}${dates ? ' · ' + dates : ''}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
   }).join('');
 }
 
@@ -238,6 +313,8 @@ function fillEmployeeForm(emp) {
   form.lastName.value = emp.lastName || '';
   form.personnelNumber.value = emp.personnelNumber || '';
   form.birthday.value = emp.birthday || '';
+  form.entryDate.value = emp.entryDate || '';
+  form.exitDate.value = emp.exitDate || '';
   form.employmentPercent.value = emp.employmentPercent || '';
   form.employmentHours.value = emp.employmentHours || '';
   form.functionId.value = emp.functionId || '';
@@ -270,11 +347,13 @@ function handleEmployeeForm(e) {
   e.preventDefault();
   const data = new FormData(employeeForm);
   const entry = {
-    id: editing.employee ?? crypto.randomUUID(),
+    id: editing.employee ?? uuid(),
     firstName: data.get('firstName').trim(),
     lastName: data.get('lastName').trim(),
     personnelNumber: data.get('personnelNumber').trim(),
     birthday: data.get('birthday'),
+    entryDate: data.get('entryDate'),
+    exitDate: data.get('exitDate'),
     employmentPercent: data.get('employmentPercent'),
     employmentHours: data.get('employmentHours'),
     functionId: data.get('functionId'),
@@ -303,7 +382,7 @@ function handleEmployeeForm(e) {
 function handleServiceForm(e) {
   e.preventDefault();
   const data = new FormData(serviceForm);
-  const entry = { id: editing.service ?? crypto.randomUUID(), name: data.get('name').trim(), start: data.get('start'), end: data.get('end') };
+  const entry = { id: editing.service ?? uuid(), name: data.get('name').trim(), start: data.get('start'), end: data.get('end') };
 
   if (editing.service) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
@@ -326,7 +405,7 @@ function handleFunctionForm(e) {
   e.preventDefault();
   const data = new FormData(functionForm);
   const serviceIds = data.getAll('serviceIds');
-  const entry = { id: editing.function ?? crypto.randomUUID(), name: data.get('name').trim(), serviceIds };
+  const entry = { id: editing.function ?? uuid(), name: data.get('name').trim(), serviceIds };
 
   if (editing.function) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
@@ -347,7 +426,7 @@ function handleFunctionForm(e) {
 function handleEmploymentForm(e) {
   e.preventDefault();
   const data = new FormData(employmentForm);
-  const entry = { id: editing.employment ?? crypto.randomUUID(), percent: Number(data.get('percent')), hours: Number(data.get('hours')) };
+  const entry = { id: editing.employment ?? uuid(), percent: Number(data.get('percent')), hours: Number(data.get('hours')) };
 
   if (editing.employment) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
@@ -422,10 +501,15 @@ function renderRoster() {
   buildRosterHeader(currentMonth);
   const monthKey = getMonthKey(currentMonth);
   const days = daysInMonth(currentMonth);
+  let cleaned = false;
 
   state.employees.forEach((emp) => {
     const tr = document.createElement('tr');
     const employment = state.employment.find((e) => e.id === emp.employmentHours);
+    const fullMonth = isEmployeeFullMonth(emp, currentMonth);
+    if (!fullMonth) {
+      cleaned = clearAssignmentsForPartial(monthKey, emp.id) || cleaned;
+    }
     tr.innerHTML = `
       <td class="names">${formatName(emp)}</td>
       <td class="names">${emp.personnelNumber}</td>
@@ -433,33 +517,53 @@ function renderRoster() {
     `;
     for (let day = 1; day <= days; day++) {
       const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const cls = ['cell'];
+      const cls = [];
       if (isHoliday(d)) cls.push('holiday');
       else if (d.getDay() === 0) cls.push('weekend');
       else if (d.getDay() === 6) cls.push('saturday');
-      const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
-      const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
-      const selectId = `${emp.id}-${day}`;
-      const options = ['<option value="">–</option>'].concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`)).join('');
       const td = document.createElement('td');
       td.className = cls.join(' ');
-      td.innerHTML = `
-        <div class="cell">
-          <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
-          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
-        </div>
-      `;
+      if (!fullMonth) {
+        td.innerHTML = '<div class="cell"><span class="inactive">–</span></div>';
+      } else {
+        const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
+        const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
+        const selectId = `${emp.id}-${day}`;
+        const options = ['<option value="">–</option>']
+          .concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
+          .join('');
+        td.innerHTML = `
+          <div class="cell">
+            <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
+            <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
+          </div>
+        `;
+      }
       tr.appendChild(td);
     }
     rosterTable.appendChild(tr);
   });
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+  if (cleaned) saveState();
 }
 
 function ensureMonthMaps(monthKey) {
   if (!state.assignments[monthKey]) state.assignments[monthKey] = {};
   if (!state.locks[monthKey]) state.locks[monthKey] = {};
+}
+
+function clearAssignmentsForPartial(monthKey, empId) {
+  let changed = false;
+  if (state.assignments[monthKey]?.[empId]) {
+    delete state.assignments[monthKey][empId];
+    changed = true;
+  }
+  if (state.locks[monthKey]?.[empId]) {
+    delete state.locks[monthKey][empId];
+    changed = true;
+  }
+  return changed;
 }
 
 function handleRosterChange(e) {
@@ -488,11 +592,14 @@ function handleRosterChange(e) {
 
 function countWeekends(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
-  return Object.entries(assignments).filter(([day, serviceId]) => {
-    if (!serviceId) return false;
+  const weekends = new Set();
+  Object.entries(assignments).forEach(([day, serviceId]) => {
+    if (!serviceId) return;
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
-    return isWeekend(d);
-  }).length;
+    const key = getWeekendKey(d);
+    if (key) weekends.add(key);
+  });
+  return weekends.size;
 }
 
 function countNights(monthKey, empId) {
@@ -527,9 +634,10 @@ function generateRoster() {
   ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
   const rules = state.rules;
+  const eligibleEmployees = state.employees.filter((emp) => isEmployeeFullMonth(emp, currentMonth));
 
   // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
-  state.employees.forEach((emp) => {
+  eligibleEmployees.forEach((emp) => {
     if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
     for (let day = 1; day <= days; day++) {
       const locked = state.locks[monthKey]?.[emp.id]?.[day];
@@ -541,7 +649,7 @@ function generateRoster() {
 
   for (let day = 1; day <= days; day++) {
     for (const service of state.services) {
-      state.employees
+      eligibleEmployees
         .filter((emp) => {
           const func = state.functions.find((f) => f.id === emp.functionId);
           const allowed = func?.serviceIds.includes(service.id);
