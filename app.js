@@ -161,8 +161,6 @@ function loadValue(key, fallback) {
   }
 }
 
-let saveTimer;
-
 function saveState() {
   localStorage.setItem(STORAGE_KEYS.employees, JSON.stringify(state.employees));
   localStorage.setItem(STORAGE_KEYS.services, JSON.stringify(state.services));
@@ -171,7 +169,6 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.rules, JSON.stringify(state.rules));
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(state.assignments));
   localStorage.setItem(STORAGE_KEYS.locks, JSON.stringify(state.locks));
-  scheduleFileSave();
 }
 
 function downloadStateFile() {
@@ -182,17 +179,6 @@ function downloadStateFile() {
   a.download = STORAGE_FILE_NAME;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function scheduleFileSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      downloadStateFile();
-    } catch (e) {
-      console.warn('Konnte lokale Datei nicht speichern', e);
-    }
-  }, 250);
 }
 
 function importState(json) {
@@ -289,6 +275,54 @@ function ensureWeekdaySelections(source = {}) {
     cleaned[key] = raw.filter((id) => state.services.some((s) => s.id === id));
   });
   return cleaned;
+}
+
+function getRequiredServiceIdsForDate(date) {
+  const rules = state.rules?.weekdayServices || {};
+  const holidayLabel = isHoliday(date);
+  const weekday = date.getDay();
+  let ids = [];
+  if (holidayLabel && rules.holiday?.length) {
+    ids = rules.holiday;
+  } else if (rules[weekday]?.length) {
+    ids = rules[weekday];
+  }
+  const filtered = ids.filter((id) => state.services.some((s) => s.id === id));
+  if (filtered.length) return filtered;
+  return state.services.map((s) => s.id);
+}
+
+function getRequiredServicesForDate(date) {
+  return getRequiredServiceIdsForDate(date)
+    .map((id) => state.services.find((s) => s.id === id))
+    .filter(Boolean);
+}
+
+function remainingServicesForDay(day, monthKey, date) {
+  const requiredIds = getRequiredServiceIdsForDate(date);
+  const remaining = requiredIds.slice();
+  state.employees.forEach((emp) => {
+    const assigned = state.assignments?.[monthKey]?.[emp.id]?.[day];
+    if (!assigned) return;
+    const idx = remaining.indexOf(assigned);
+    if (idx !== -1) remaining.splice(idx, 1);
+  });
+  return remaining
+    .map((id) => state.services.find((s) => s.id === id))
+    .filter(Boolean);
+}
+
+function allowedServicesForEmployee(emp, assigned) {
+  const func = state.functions.find((f) => f.id === emp.functionId);
+  const allowedIds = Array.isArray(func?.serviceIds) && func.serviceIds.length ? func.serviceIds : [];
+  let services = allowedIds.length ? state.services.filter((s) => allowedIds.includes(s.id)) : [];
+  if (assigned && !services.some((s) => s.id === assigned)) {
+    const existing = state.services.find((s) => s.id === assigned);
+    if (existing) services = services.concat(existing);
+  }
+  return services
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true }));
 }
 
 function updateDropdowns() {
@@ -642,19 +676,49 @@ function renderRoster() {
       const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
       const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
       const selectId = `${emp.id}-${day}`;
-      const options = ['<option value="">–</option>'].concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`)).join('');
+      const serviceOptions = allowedServicesForEmployee(emp, assign);
+      const options = ['<option value="">–</option>']
+        .concat(serviceOptions.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
+        .join('');
       const td = document.createElement('td');
       td.className = cls.join(' ');
       td.innerHTML = `
         <div class="cell">
           <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
-          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
+          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>
         </div>
       `;
       tr.appendChild(td);
     }
     rosterTable.appendChild(tr);
   });
+
+  const unassignedRow = document.createElement('tr');
+  unassignedRow.className = 'unassigned-row';
+  unassignedRow.innerHTML = `
+    <td class="names col-name">Nicht verplante Dienste</td>
+    <td class="names col-pnr"></td>
+    <td class="names col-soll"></td>
+    <td class="names col-remaining"></td>
+  `;
+  for (let day = 1; day <= days; day++) {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const remaining = remainingServicesForDay(day, monthKey, d);
+    const cls = ['unassigned-cell'];
+    if (isHoliday(d)) cls.push('holiday');
+    else if (d.getDay() === 0) cls.push('weekend');
+    else if (d.getDay() === 6) cls.push('saturday');
+    if (!remaining.length) cls.push('complete');
+    const td = document.createElement('td');
+    td.className = cls.join(' ');
+    if (remaining.length) {
+      td.innerHTML = `<div class="unassigned-list">${remaining.map((s) => `<span>${s.name}</span>`).join('')}</div>`;
+    } else {
+      td.innerHTML = '<span class="all-assigned">Alle geplant</span>';
+    }
+    unassignedRow.appendChild(td);
+  }
+  rosterTable.appendChild(unassignedRow);
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
 }
@@ -745,13 +809,7 @@ function generateRoster() {
 
   for (let day = 1; day <= days; day++) {
     const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const weekday = currentDate.getDay();
-    const holidayServices = isHoliday(currentDate) ? rules.weekdayServices?.holiday || [] : [];
-    const weekdayServices = rules.weekdayServices?.[weekday] || [];
-    const requiredIds = holidayServices.length ? holidayServices : weekdayServices;
-    const servicesForDay = requiredIds.length
-      ? state.services.filter((s) => requiredIds.includes(s.id))
-      : state.services;
+    const servicesForDay = getRequiredServicesForDate(currentDate);
     for (const service of servicesForDay) {
       state.employees
         .filter((emp) => {

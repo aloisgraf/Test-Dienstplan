@@ -8,9 +8,9 @@
   --pill: #1e293b;
   --error: #fca5a5;
   --success: #22c55e;
-  --weekend: #cbd5e1;
-  --saturday: #e2e8f0;
-  --holiday: #fef08a;
+  --weekend: rgba(148, 163, 184, 0.25);
+  --saturday: rgba(148, 163, 184, 0.35);
+  --holiday: rgba(253, 224, 71, 0.35);
   --col-name: 200px;
   --col-pnr: 140px;
   --col-soll: 140px;
@@ -219,9 +219,9 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 .day-label { display: flex; flex-direction: column; gap: .15rem; font-size: .85rem; }
 .day-label span:first-child { font-weight: 700; }
 
-.weekend { background: var(--weekend); color: #0b1224; }
-.saturday { background: var(--saturday); color: #0b1224; }
-.holiday { background: var(--holiday); color: #0b1224; font-weight: 700; }
+.weekend { background: var(--weekend); color: inherit; }
+.saturday { background: var(--saturday); color: inherit; }
+.holiday { background: var(--holiday); color: inherit; font-weight: 600; }
 
 .cell {
   display: flex;
@@ -229,10 +229,26 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
   gap: .35rem;
 }
 .cell select { width: 100%; }
-.cell .lock { display: inline-flex; align-items: center; gap: .4rem; justify-content: center; font-size: .8rem; }
+.cell .lock {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 400;
+}
+.cell .lock input { margin: 0; }
+.cell .lock span { font-weight: 400; }
 
 .remaining { font-weight: 700; }
 .remaining.negative { color: var(--error); }
+
+.unassigned-row td.names { background: #0b1224; font-weight: 600; }
+.unassigned-cell { font-size: .85rem; }
+.unassigned-list { display: flex; flex-direction: column; gap: .2rem; }
+.unassigned-list span { display: inline-flex; justify-content: center; padding: .15rem .25rem; border-radius: .4rem; background: var(--pill); font-size: .75rem; }
+.unassigned-cell.complete { background: rgba(34, 197, 94, 0.2); color: var(--success); font-weight: 600; }
+.all-assigned { display: inline-flex; align-items: center; justify-content: center; }
 
 .muted { color: var(--muted); margin: 0; }
 .roster-header { align-items: flex-start; gap: .5rem; }
