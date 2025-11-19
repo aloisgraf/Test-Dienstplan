@@ -11,6 +11,10 @@
   --weekend: #1f2937;
   --saturday: #2b3547;
   --holiday: #facc15;
+  --col-name: 220px;
+  --col-id: 170px;
+  --col-target: 150px;
+  --col-remaining: 170px;
 }
 
 * { box-sizing: border-box; }
@@ -141,10 +145,42 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 }
 #rosterTable th, #rosterTable td { border: 1px solid #1f2937; padding: .4rem .45rem; text-align: center; font-size: .9rem; }
 #rosterTable th { background: #0f172a; position: sticky; top: 0; z-index: 2; }
-#rosterTable th.names { position: sticky; left: 0; z-index: 3; background: #0b1224; }
-#rosterTable td.names { position: sticky; left: 0; background: #0b1224; text-align: left; z-index: 1; }
-#rosterTable td.meta { position: sticky; left: 180px; background: #0b1224; text-align: left; z-index: 1; }
-#rosterTable td.meta.soll { left: 360px; }
+#rosterTable th.sticky,
+#rosterTable td.sticky {
+  position: sticky;
+  background: #0b1224;
+  text-align: left;
+}
+
+#rosterTable th.col-name,
+#rosterTable td.col-name {
+  left: 0;
+  min-width: var(--col-name);
+  z-index: 4;
+}
+
+#rosterTable th.col-id,
+#rosterTable td.col-id {
+  left: var(--col-name);
+  min-width: var(--col-id);
+  z-index: 3;
+}
+
+#rosterTable th.col-target,
+#rosterTable td.col-target {
+  left: calc(var(--col-name) + var(--col-id));
+  min-width: var(--col-target);
+  z-index: 2;
+}
+
+#rosterTable th.col-remaining,
+#rosterTable td.col-remaining {
+  left: calc(var(--col-name) + var(--col-id) + var(--col-target));
+  min-width: var(--col-remaining);
+  z-index: 1;
+}
+
+.remaining-value.negative { color: var(--error); font-weight: 700; }
 
 .day-label { display: flex; flex-direction: column; gap: .15rem; font-size: .85rem; }
 .day-label span:first-child { font-weight: 700; }

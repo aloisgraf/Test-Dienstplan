@@ -38,8 +38,6 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     lastName: 'Huber',
     personnelNumber: '1001',
     birthday: '1988-05-12',
-    entryDate: '',
-    exitDate: '',
     employmentPercent: employment[0].id,
     employmentHours: employment[0].id,
     functionId: functions[0].id,
@@ -52,8 +50,6 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     lastName: 'Mayr',
     personnelNumber: '1002',
     birthday: '1990-09-02',
-    entryDate: '',
-    exitDate: '',
     employmentPercent: employment[1].id,
     employmentHours: employment[1].id,
     functionId: functions[1].id,
@@ -66,8 +62,6 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     lastName: 'Lenz',
     personnelNumber: '1003',
     birthday: '1992-03-21',
-    entryDate: '',
-    exitDate: '',
     employmentPercent: employment[2].id,
     employmentHours: employment[2].id,
     functionId: functions[0].id,
@@ -194,24 +188,6 @@ function weekdayLabel(date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long' });
 }
 
-function monthStart(date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function monthEnd(date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function isEmployeeFullMonth(emp, date) {
-  const start = monthStart(date);
-  const end = monthEnd(date);
-  const entry = emp.entryDate ? new Date(emp.entryDate) : null;
-  const exit = emp.exitDate ? new Date(emp.exitDate) : null;
-  if (entry && entry > start) return false;
-  if (exit && exit < end) return false;
-  return true;
-}
-
 function isWeekend(date) {
   const w = date.getDay();
   return w === 0 || w === 6;
@@ -234,17 +210,10 @@ function serviceDuration(service) {
   return Math.max(duration, 0);
 }
 
-function getWeekendKey(date) {
-  const day = date.getDay();
-  if (day === 6) {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  }
-  if (day === 0) {
-    const saturday = new Date(date);
-    saturday.setDate(date.getDate() - 1);
-    return `${saturday.getFullYear()}-${saturday.getMonth()}-${saturday.getDate()}`;
-  }
-  return null;
+function formatHoursLabel(value) {
+  if (!Number.isFinite(value)) return '–';
+  const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  return `${formatted} Std`;
 }
 
 function updateDropdowns() {
@@ -276,15 +245,14 @@ function updateDropdowns() {
 
 function renderEmployees() {
   updateDropdowns();
-  employeeList.innerHTML = state.employees.map((emp) => {
-    const percent = state.employment.find((e) => e.id === emp.employmentPercent);
-    const hours = state.employment.find((e) => e.id === emp.employmentHours);
-    const func = state.functions.find((f) => f.id === emp.functionId);
-    const dates = [emp.entryDate ? `Eintritt ${emp.entryDate}` : '', emp.exitDate ? `Austritt ${emp.exitDate}` : '']
-      .filter(Boolean)
-      .join(' · ');
-    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}${dates ? ' · ' + dates : ''}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
-  }).join('');
+  employeeList.innerHTML = state.employees
+    .map((emp) => {
+      const percent = state.employment.find((e) => e.id === emp.employmentPercent);
+      const hours = state.employment.find((e) => e.id === emp.employmentHours);
+      const func = state.functions.find((f) => f.id === emp.functionId);
+      return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
+    })
+    .join('');
 }
 
 function renderServices() {
@@ -313,8 +281,6 @@ function fillEmployeeForm(emp) {
   form.lastName.value = emp.lastName || '';
   form.personnelNumber.value = emp.personnelNumber || '';
   form.birthday.value = emp.birthday || '';
-  form.entryDate.value = emp.entryDate || '';
-  form.exitDate.value = emp.exitDate || '';
   form.employmentPercent.value = emp.employmentPercent || '';
   form.employmentHours.value = emp.employmentHours || '';
   form.functionId.value = emp.functionId || '';
@@ -352,8 +318,6 @@ function handleEmployeeForm(e) {
     lastName: data.get('lastName').trim(),
     personnelNumber: data.get('personnelNumber').trim(),
     birthday: data.get('birthday'),
-    entryDate: data.get('entryDate'),
-    exitDate: data.get('exitDate'),
     employmentPercent: data.get('employmentPercent'),
     employmentHours: data.get('employmentHours'),
     functionId: data.get('functionId'),
@@ -482,9 +446,10 @@ function buildRosterHeader(date) {
   const days = daysInMonth(date);
   const headerRows = [document.createElement('tr'), document.createElement('tr')];
   const stickyCells = [
-    '<th class="names" rowspan="2">Name</th>',
-    '<th class="names" rowspan="2">Personalnummer</th>',
-    '<th class="names" rowspan="2">Stundensoll</th>',
+    '<th class="sticky col-name" rowspan="2">Name</th>',
+    '<th class="sticky col-id" rowspan="2">Personalnummer</th>',
+    '<th class="sticky col-target" rowspan="2">Stundensoll</th>',
+    '<th class="sticky col-remaining" rowspan="2">Noch zu verplanen</th>',
   ];
   stickyCells.forEach((html) => headerRows[0].insertAdjacentHTML('beforeend', html));
   for (let day = 1; day <= days; day++) {
@@ -501,20 +466,21 @@ function renderRoster() {
   buildRosterHeader(currentMonth);
   const monthKey = getMonthKey(currentMonth);
   const days = daysInMonth(currentMonth);
-  let cleaned = false;
-
   state.employees.forEach((emp) => {
     const tr = document.createElement('tr');
     const employment = state.employment.find((e) => e.id === emp.employmentHours);
-    const fullMonth = isEmployeeFullMonth(emp, currentMonth);
-    if (!fullMonth) {
-      cleaned = clearAssignmentsForPartial(monthKey, emp.id) || cleaned;
-    }
-    tr.innerHTML = `
-      <td class="names">${formatName(emp)}</td>
-      <td class="names">${emp.personnelNumber}</td>
-      <td class="names">${employment?.hours ?? '–'} Std</td>
-    `;
+    const targetHours = employment?.hours;
+    const worked = hoursForEmployee(monthKey, emp.id);
+    const remaining = typeof targetHours === 'number' ? targetHours - worked : undefined;
+    const targetLabel = typeof targetHours === 'number' ? formatHoursLabel(targetHours) : '–';
+    const remainingLabel = typeof remaining === 'number'
+      ? `<span class="remaining-value ${remaining < 0 ? 'negative' : ''}">${formatHoursLabel(remaining)}</span>`
+      : '–';
+    tr.insertAdjacentHTML('beforeend', `<td class="sticky col-name">${formatName(emp)}</td>`);
+    tr.insertAdjacentHTML('beforeend', `<td class="sticky col-id">${emp.personnelNumber}</td>`);
+    tr.insertAdjacentHTML('beforeend', `<td class="sticky col-target">${targetLabel}</td>`);
+    tr.insertAdjacentHTML('beforeend', `<td class="sticky col-remaining">${remainingLabel}</td>`);
+
     for (let day = 1; day <= days; day++) {
       const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const cls = [];
@@ -523,47 +489,29 @@ function renderRoster() {
       else if (d.getDay() === 6) cls.push('saturday');
       const td = document.createElement('td');
       td.className = cls.join(' ');
-      if (!fullMonth) {
-        td.innerHTML = '<div class="cell"><span class="inactive">–</span></div>';
-      } else {
-        const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
-        const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
-        const selectId = `${emp.id}-${day}`;
-        const options = ['<option value="">–</option>']
-          .concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
-          .join('');
-        td.innerHTML = `
-          <div class="cell">
-            <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
-            <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
-          </div>
-        `;
-      }
+      const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
+      const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
+      const selectId = `${emp.id}-${day}`;
+      const options = ['<option value="">–</option>']
+        .concat(state.services.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
+        .join('');
+      td.innerHTML = `
+        <div class="cell">
+          <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
+          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> Sperren</label>
+        </div>
+      `;
       tr.appendChild(td);
     }
     rosterTable.appendChild(tr);
   });
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
-  if (cleaned) saveState();
 }
 
 function ensureMonthMaps(monthKey) {
   if (!state.assignments[monthKey]) state.assignments[monthKey] = {};
   if (!state.locks[monthKey]) state.locks[monthKey] = {};
-}
-
-function clearAssignmentsForPartial(monthKey, empId) {
-  let changed = false;
-  if (state.assignments[monthKey]?.[empId]) {
-    delete state.assignments[monthKey][empId];
-    changed = true;
-  }
-  if (state.locks[monthKey]?.[empId]) {
-    delete state.locks[monthKey][empId];
-    changed = true;
-  }
-  return changed;
 }
 
 function handleRosterChange(e) {
@@ -573,8 +521,13 @@ function handleRosterChange(e) {
     const monthKey = getMonthKey(currentMonth);
     ensureMonthMaps(monthKey);
     if (!state.assignments[monthKey][emp]) state.assignments[monthKey][emp] = {};
-    state.assignments[monthKey][emp][day] = e.target.value;
+    if (e.target.value) {
+      state.assignments[monthKey][emp][day] = e.target.value;
+    } else {
+      delete state.assignments[monthKey][emp][day];
+    }
     saveState();
+    renderRoster();
   }
 
   if (e.target.matches('input[type="checkbox"][data-lock]')) {
@@ -592,14 +545,11 @@ function handleRosterChange(e) {
 
 function countWeekends(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
-  const weekends = new Set();
-  Object.entries(assignments).forEach(([day, serviceId]) => {
-    if (!serviceId) return;
+  return Object.entries(assignments).reduce((count, [day, serviceId]) => {
+    if (!serviceId) return count;
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
-    const key = getWeekendKey(d);
-    if (key) weekends.add(key);
-  });
-  return weekends.size;
+    return count + (isWeekend(d) ? 1 : 0);
+  }, 0);
 }
 
 function countNights(monthKey, empId) {
@@ -634,7 +584,7 @@ function generateRoster() {
   ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
   const rules = state.rules;
-  const eligibleEmployees = state.employees.filter((emp) => isEmployeeFullMonth(emp, currentMonth));
+  const eligibleEmployees = [...state.employees];
 
   // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
   eligibleEmployees.forEach((emp) => {
