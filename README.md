@@ -19,7 +19,6 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 | Datei | Beschreibung |
 | --- | --- |
 | `index.html`, `app.js`, `style.css` | Einstiegsseite mit Admin-Bereich, Monatsraster, Generierung und lokalem Datenspeicher (localStorage) plus JSON-Export/Import. |
-| `schedule-data.js` | Ursprung des Dezember-Plans; wird in der neuen Oberfläche nicht mehr benötigt, kann aber als Beispiel dienen. |
 
 ## Starten
 
