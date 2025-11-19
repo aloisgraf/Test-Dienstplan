@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
   rules: 'dienstplan_rules',
   assignments: 'dienstplan_assignments',
   locks: 'dienstplan_locks',
+  groups: 'dienstplan_groups',
+  layout: 'dienstplan_layout',
 };
 
 const STORAGE_FILE_NAME = 'dienstplan_daten.json';
@@ -37,9 +39,51 @@ const DEFAULT_FUNCTIONS = (services) => [
 ];
 
 const DEFAULT_EMPLOYEES = (employment, functions) => [
-  { id: uuid(), firstName: 'Alex', lastName: 'Huber', personnelNumber: '1001', birthday: '1988-05-12', employmentPercent: employment[0].id, employmentHours: employment[0].id, functionId: functions[0].id, nightAllowed: true, rkt: false },
-  { id: uuid(), firstName: 'Bianca', lastName: 'Mayr', personnelNumber: '1002', birthday: '1990-09-02', employmentPercent: employment[1].id, employmentHours: employment[1].id, functionId: functions[1].id, nightAllowed: true, rkt: true },
-  { id: uuid(), firstName: 'Chris', lastName: 'Lenz', personnelNumber: '1003', birthday: '1992-03-21', employmentPercent: employment[2].id, employmentHours: employment[2].id, functionId: functions[0].id, nightAllowed: false, rkt: false },
+  {
+    id: uuid(),
+    firstName: 'Alex',
+    lastName: 'Huber',
+    personnelNumber: '1001',
+    birthday: '1988-05-12',
+    employmentPercent: employment[0].id,
+    employmentHours: employment[0].id,
+    functionId: functions[0].id,
+    vacationDays: 25,
+    vacations: [],
+    groupId: null,
+    nightAllowed: true,
+    rkt: false,
+  },
+  {
+    id: uuid(),
+    firstName: 'Bianca',
+    lastName: 'Mayr',
+    personnelNumber: '1002',
+    birthday: '1990-09-02',
+    employmentPercent: employment[1].id,
+    employmentHours: employment[1].id,
+    functionId: functions[1].id,
+    vacationDays: 25,
+    vacations: [],
+    groupId: null,
+    nightAllowed: true,
+    rkt: true,
+  },
+  {
+    id: uuid(),
+    firstName: 'Chris',
+    lastName: 'Lenz',
+    personnelNumber: '1003',
+    birthday: '1992-03-21',
+    employmentPercent: employment[2].id,
+    employmentHours: employment[2].id,
+    functionId: functions[0].id,
+    vacationDays: 25,
+    vacations: [],
+    groupId: null,
+    nightAllowed: false,
+    rkt: false,
+  },
 ];
 
 const DEFAULT_RULES = {
@@ -109,18 +153,30 @@ const loadFileBtn = document.getElementById('loadFile');
 const loadFileInput = document.getElementById('loadFileInput');
 const weekdaySelects = document.querySelectorAll('[data-weekday-select]');
 const weekdayFields = document.querySelectorAll('[data-weekday-field]');
+const createGroupBtn = document.getElementById('createGroupBtn');
+const assignGroupBtn = document.getElementById('assignGroupBtn');
+const removeGroupBtn = document.getElementById('removeGroupBtn');
+const groupSelect = document.getElementById('groupSelect');
+const vacationPanel = document.getElementById('vacationPanel');
+const vacationBalance = document.getElementById('vacationBalance');
+const vacationStartInput = document.getElementById('vacationStart');
+const vacationEndInput = document.getElementById('vacationEnd');
+const addVacationBtn = document.getElementById('addVacation');
+const vacationList = document.getElementById('vacationList');
 
 let state = loadState();
 let currentMonth = new Date();
 currentMonth.setDate(1);
 const editing = { employee: null, service: null, function: null, employment: null };
 let weekdaySelections = ensureWeekdaySelections(state.rules.weekdayServices);
+let selectedRows = new Set();
+let draggingRowId = null;
 
 function loadState() {
   const employment = loadArray(STORAGE_KEYS.employmentTypes, DEFAULT_EMPLOYMENT);
   const services = loadArray(STORAGE_KEYS.services, DEFAULT_SERVICES);
   const functions = loadArray(STORAGE_KEYS.functions, DEFAULT_FUNCTIONS(services));
-  const employees = loadArray(STORAGE_KEYS.employees, DEFAULT_EMPLOYEES(employment, functions));
+  const employeesRaw = loadArray(STORAGE_KEYS.employees, DEFAULT_EMPLOYEES(employment, functions));
   const storedRules = loadValue(STORAGE_KEYS.rules, DEFAULT_RULES);
   const rules = {
     ...DEFAULT_RULES,
@@ -129,7 +185,12 @@ function loadState() {
   };
   const assignments = loadValue(STORAGE_KEYS.assignments, {});
   const locks = loadValue(STORAGE_KEYS.locks, {});
-  return { employment, services, functions, employees, rules, assignments, locks };
+  const groups = loadArray(STORAGE_KEYS.groups, []);
+  const sanitizedGroups = sanitizeGroups(groups);
+  const employees = normalizeEmployees(employeesRaw, sanitizedGroups);
+  const layout = ensureLayout(loadValue(STORAGE_KEYS.layout, null), employees);
+  cleanEmployeeGroups(employees, sanitizedGroups);
+  return { employment, services, functions, employees, rules, assignments, locks, groups: sanitizedGroups, layout };
 }
 
 function loadArray(key, fallback) {
@@ -161,6 +222,124 @@ function loadValue(key, fallback) {
   }
 }
 
+function sanitizeGroups(groups = []) {
+  if (!Array.isArray(groups)) return [];
+  return groups
+    .map((group) => {
+      if (!group || !group.id) return null;
+      return { id: group.id, name: group.name || 'Gruppe' };
+    })
+    .filter(Boolean);
+}
+
+function normalizeEmployees(employees = [], groups = []) {
+  return employees.map((emp) => {
+    const vacationDays = Number(emp.vacationDays);
+    const normalized = {
+      ...emp,
+      vacationDays: Number.isFinite(vacationDays) ? vacationDays : 0,
+      vacations: normalizeVacationEntries(emp.vacations),
+      groupId: emp.groupId && groups.some((g) => g.id === emp.groupId) ? emp.groupId : null,
+    };
+    return normalized;
+  });
+}
+
+function normalizeVacationEntries(entries = []) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => {
+      const start = parseISODate(entry?.start);
+      const end = parseISODate(entry?.end);
+      if (!start || !end) return null;
+      const ordered = start <= end ? { start, end } : { start: end, end: start };
+      return {
+        id: entry.id || uuid(),
+        start: formatISODate(ordered.start),
+        end: formatISODate(ordered.end),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
+function ensureLayout(layout, employees) {
+  const ids = employees.map((emp) => emp.id);
+  if (!layout || !Array.isArray(layout.order)) {
+    return { order: ids.slice() };
+  }
+  const order = layout.order.filter((id) => ids.includes(id));
+  ids.forEach((id) => {
+    if (!order.includes(id)) order.push(id);
+  });
+  return { order };
+}
+
+function cleanEmployeeGroups(employees, groups) {
+  const valid = new Set(groups.map((g) => g.id));
+  employees.forEach((emp) => {
+    if (emp.groupId && !valid.has(emp.groupId)) {
+      emp.groupId = null;
+    }
+  });
+}
+
+function ensureEmployeeInLayout(empId) {
+  if (!state.layout.order.includes(empId)) {
+    state.layout.order.push(empId);
+  }
+}
+
+function getOrderedEmployees() {
+  const order = state.layout?.order || [];
+  const map = new Map(state.employees.map((emp) => [emp.id, emp]));
+  const result = [];
+  order.forEach((id) => {
+    if (map.has(id)) result.push(map.get(id));
+  });
+  state.employees.forEach((emp) => {
+    if (!order.includes(emp.id)) {
+      ensureEmployeeInLayout(emp.id);
+      result.push(emp);
+    }
+  });
+  return result;
+}
+
+function cleanSelectedRows() {
+  const ids = new Set(state.employees.map((emp) => emp.id));
+  selectedRows.forEach((id) => {
+    if (!ids.has(id)) selectedRows.delete(id);
+  });
+}
+
+function updateGroupPicker() {
+  if (!groupSelect) return;
+  const previous = groupSelect.value;
+  const options = state.groups
+    .map((group) => `<option value="${group.id}">${group.name}</option>`)
+    .join('');
+  groupSelect.innerHTML = '<option value="">Gruppe wählen…</option>' + options;
+  if (previous && state.groups.some((g) => g.id === previous)) {
+    groupSelect.value = previous;
+  }
+}
+
+function selectedRowsHaveGroup() {
+  return Array.from(selectedRows).some((id) => {
+    const emp = state.employees.find((e) => e.id === id);
+    return !!emp?.groupId;
+  });
+}
+
+function updateRowToolStates() {
+  if (!createGroupBtn) return;
+  const hasSelection = selectedRows.size > 0;
+  createGroupBtn.disabled = !hasSelection;
+  assignGroupBtn.disabled = !hasSelection || !groupSelect.value;
+  removeGroupBtn.disabled = !hasSelection || !selectedRowsHaveGroup();
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEYS.employees, JSON.stringify(state.employees));
   localStorage.setItem(STORAGE_KEYS.services, JSON.stringify(state.services));
@@ -169,6 +348,8 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.rules, JSON.stringify(state.rules));
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(state.assignments));
   localStorage.setItem(STORAGE_KEYS.locks, JSON.stringify(state.locks));
+  localStorage.setItem(STORAGE_KEYS.groups, JSON.stringify(state.groups));
+  localStorage.setItem(STORAGE_KEYS.layout, JSON.stringify(state.layout));
 }
 
 function downloadStateFile() {
@@ -184,8 +365,10 @@ function downloadStateFile() {
 function importState(json) {
   try {
     const parsed = JSON.parse(json);
+    const parsedGroups = sanitizeGroups(parsed.groups ?? []);
+    const employees = normalizeEmployees(parsed.employees ?? [], parsedGroups);
     state = {
-      employees: parsed.employees ?? [],
+      employees,
       services: parsed.services ?? [],
       functions: parsed.functions ?? [],
       employment: parsed.employment ?? [],
@@ -199,15 +382,20 @@ function importState(json) {
       },
       assignments: parsed.assignments ?? {},
       locks: parsed.locks ?? {},
+      groups: parsedGroups,
+      layout: ensureLayout(parsed.layout, employees),
     };
+    cleanEmployeeGroups(state.employees, state.groups);
     editing.employee = null;
     editing.service = null;
     editing.function = null;
     editing.employment = null;
+    selectedRows = new Set();
     employeeForm.reset();
     serviceForm.reset();
     functionForm.reset();
     employmentForm.reset();
+    renderVacationPanel(null);
     saveState();
     updateDropdowns();
     renderEmployees();
@@ -228,6 +416,17 @@ function formatName(emp) {
 
 function getMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function parseISODate(value) {
+  if (!value || typeof value !== 'string') return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (![year, month, day].every((num) => Number.isFinite(num))) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatISODate(date) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
 }
 
 function daysInMonth(date) {
@@ -266,6 +465,100 @@ function formatHours(value) {
   if (value === undefined || value === null || Number.isNaN(value)) return '–';
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
+}
+
+function vacationBreakdown(startStr, endStr) {
+  const start = parseISODate(startStr);
+  const end = parseISODate(endStr);
+  if (!start || !end) return {};
+  const begin = start <= end ? start : end;
+  const finish = start <= end ? end : start;
+  const cursor = new Date(begin.getTime());
+  const perYear = {};
+  while (cursor <= finish) {
+    const year = cursor.getFullYear();
+    perYear[year] = (perYear[year] || 0) + 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return perYear;
+}
+
+function vacationUsageByYear(emp) {
+  const usage = {};
+  (emp.vacations || []).forEach((entry) => {
+    const breakdown = vacationBreakdown(entry.start, entry.end);
+    Object.entries(breakdown).forEach(([year, days]) => {
+      usage[year] = (usage[year] || 0) + days;
+    });
+  });
+  return usage;
+}
+
+function remainingVacationDays(emp, year) {
+  const total = Number(emp.vacationDays) || 0;
+  const usage = vacationUsageByYear(emp);
+  return total - (usage[year] || 0);
+}
+
+function calculateVacationDays(startStr, endStr) {
+  const breakdown = vacationBreakdown(startStr, endStr);
+  return Object.values(breakdown).reduce((sum, days) => sum + days, 0);
+}
+
+function formatVacationRange(entry) {
+  const start = parseISODate(entry.start);
+  const end = parseISODate(entry.end);
+  if (!start || !end) return '';
+  const formatter = new Intl.DateTimeFormat('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (entry.start === entry.end) return formatter.format(start);
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
+}
+
+function findVacationOnDate(emp, date) {
+  if (!emp.vacations?.length) return null;
+  return emp.vacations.find((entry) => {
+    const start = parseISODate(entry.start);
+    const end = parseISODate(entry.end);
+    if (!start || !end) return false;
+    const begin = start <= end ? start : end;
+    const finish = start <= end ? end : start;
+    return date >= begin && date <= finish;
+  });
+}
+
+function hasBirthdayOnDate(emp, date) {
+  if (!emp.birthday) return false;
+  const birthday = parseISODate(emp.birthday);
+  if (!birthday) return false;
+  return birthday.getDate() === date.getDate() && birthday.getMonth() === date.getMonth();
+}
+
+function clearAssignmentsForVacationRange(empId, startStr, endStr) {
+  const start = parseISODate(startStr);
+  const end = parseISODate(endStr);
+  if (!start || !end) return;
+  const begin = start <= end ? start : end;
+  const finish = start <= end ? end : start;
+  const cursor = new Date(begin.getTime());
+  while (cursor <= finish) {
+    const monthKey = getMonthKey(cursor);
+    const day = cursor.getDate();
+    const monthAssignments = state.assignments[monthKey];
+    const monthLocks = state.locks[monthKey];
+    if (monthAssignments && monthAssignments[empId]) {
+      delete monthAssignments[empId][day];
+      if (!Object.keys(monthAssignments[empId]).length) {
+        delete monthAssignments[empId];
+      }
+    }
+    if (monthLocks && monthLocks[empId]) {
+      delete monthLocks[empId][day];
+      if (!Object.keys(monthLocks[empId]).length) {
+        delete monthLocks[empId];
+      }
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
 }
 
 function ensureWeekdaySelections(source = {}) {
@@ -315,11 +608,7 @@ function remainingServicesForDay(day, monthKey, date) {
 function allowedServicesForEmployee(emp, assigned) {
   const func = state.functions.find((f) => f.id === emp.functionId);
   const allowedIds = Array.isArray(func?.serviceIds) && func.serviceIds.length ? func.serviceIds : [];
-  let services = allowedIds.length ? state.services.filter((s) => allowedIds.includes(s.id)) : [];
-  if (assigned && !services.some((s) => s.id === assigned)) {
-    const existing = state.services.find((s) => s.id === assigned);
-    if (existing) services = services.concat(existing);
-  }
+  const services = allowedIds.length ? state.services.filter((s) => allowedIds.includes(s.id)) : [];
   return services
     .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true }));
@@ -350,6 +639,7 @@ function updateDropdowns() {
   if (prevService && state.services.some((s) => s.id === prevService)) servicePicker.value = prevService;
   if (prevFunction && state.functions.some((f) => f.id === prevFunction)) functionPicker.value = prevFunction;
   if (prevEmployment && state.employment.some((e) => e.id === prevEmployment)) employmentPicker.value = prevEmployment;
+  updateGroupPicker();
 }
 
 function renderEmployees() {
@@ -358,8 +648,82 @@ function renderEmployees() {
     const percent = state.employment.find((e) => e.id === emp.employmentPercent);
     const hours = state.employment.find((e) => e.id === emp.employmentHours);
     const func = state.functions.find((f) => f.id === emp.functionId);
-    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'}</small></div></div>`;
+    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'} · Urlaub: ${emp.vacationDays ?? 0} Tage</small></div></div>`;
   }).join('');
+}
+
+function renderVacationPanel(emp) {
+  if (!vacationPanel) return;
+  if (!emp) {
+    vacationPanel.hidden = true;
+    vacationList.innerHTML = '';
+    vacationBalance.textContent = '';
+    return;
+  }
+  vacationPanel.hidden = false;
+  const currentYear = currentMonth.getFullYear();
+  const remaining = remainingVacationDays(emp, currentYear);
+  const usage = vacationUsageByYear(emp)[currentYear] || 0;
+  vacationBalance.textContent = `Anspruch: ${emp.vacationDays ?? 0} Tage · ${currentYear}: ${Math.max(remaining, 0)} Tage frei (${usage} verplant)`;
+  if (!emp.vacations?.length) {
+    vacationList.innerHTML = '<li class="muted">Noch kein Urlaub eingetragen</li>';
+    return;
+  }
+  const entries = emp.vacations.slice().sort((a, b) => a.start.localeCompare(b.start));
+  vacationList.innerHTML = entries
+    .map((entry) => {
+      const days = calculateVacationDays(entry.start, entry.end);
+      return `<li><div><strong>${formatVacationRange(entry)}</strong><span class="muted">${days} Tag${days === 1 ? '' : 'e'}</span></div><button type="button" class="ghost" data-remove-vacation="${entry.id}">Entfernen</button></li>`;
+    })
+    .join('');
+}
+
+function handleAddVacation() {
+  if (!editing.employee) {
+    alert('Bitte zuerst einen Mitarbeitenden auswählen.');
+    return;
+  }
+  const emp = state.employees.find((e) => e.id === editing.employee);
+  if (!emp) return;
+  if (!vacationStartInput.value) {
+    alert('Bitte ein Startdatum wählen.');
+    return;
+  }
+  const start = vacationStartInput.value;
+  const end = vacationEndInput.value || vacationStartInput.value;
+  const ordered = start <= end ? { start, end } : { start: end, end: start };
+  const breakdown = vacationBreakdown(ordered.start, ordered.end);
+  const conflicts = Object.entries(breakdown).filter(([year, days]) => {
+    const remaining = remainingVacationDays(emp, Number(year));
+    return days > remaining;
+  });
+  if (conflicts.length) {
+    const summary = conflicts.map(([year, days]) => `${year}: ${days} Tage`).join(', ');
+    if (!confirm(`Der Urlaub überschreitet den verfügbaren Resturlaub (${summary}). Trotzdem speichern?`)) {
+      return;
+    }
+  }
+  const entry = { id: uuid(), start: ordered.start, end: ordered.end };
+  emp.vacations.push(entry);
+  clearAssignmentsForVacationRange(emp.id, entry.start, entry.end);
+  saveState();
+  renderVacationPanel(emp);
+  renderRoster();
+  vacationStartInput.value = '';
+  vacationEndInput.value = '';
+}
+
+function handleVacationListClick(event) {
+  const button = event.target instanceof Element ? event.target.closest('[data-remove-vacation]') : null;
+  if (!button) return;
+  if (!editing.employee) return;
+  const emp = state.employees.find((e) => e.id === editing.employee);
+  if (!emp) return;
+  if (!confirm('Diesen Urlaub wirklich entfernen?')) return;
+  emp.vacations = emp.vacations.filter((entry) => entry.id !== button.dataset.removeVacation);
+  saveState();
+  renderVacationPanel(emp);
+  renderRoster();
 }
 
 function renderServices() {
@@ -468,6 +832,7 @@ function fillEmployeeForm(emp) {
   form.employmentPercent.value = emp.employmentPercent || '';
   form.employmentHours.value = emp.employmentHours || '';
   form.functionId.value = emp.functionId || '';
+  form.vacationDays.value = emp.vacationDays ?? 0;
   form.nightAllowed.checked = !!emp.nightAllowed;
   form.rkt.checked = !!emp.rkt;
 }
@@ -496,8 +861,11 @@ function fillEmploymentForm(entry) {
 function handleEmployeeForm(e) {
   e.preventDefault();
   const data = new FormData(employeeForm);
+  const existing = editing.employee ? state.employees.find((emp) => emp.id === editing.employee) : null;
   const entry = {
     id: editing.employee ?? uuid(),
+    vacations: existing?.vacations ? clone(existing.vacations) : [],
+    groupId: existing?.groupId || null,
     firstName: data.get('firstName').trim(),
     lastName: data.get('lastName').trim(),
     personnelNumber: data.get('personnelNumber').trim(),
@@ -505,6 +873,7 @@ function handleEmployeeForm(e) {
     employmentPercent: data.get('employmentPercent'),
     employmentHours: data.get('employmentHours'),
     functionId: data.get('functionId'),
+    vacationDays: Number(data.get('vacationDays')) || 0,
     nightAllowed: data.get('nightAllowed') === 'on',
     rkt: data.get('rkt') === 'on',
   };
@@ -517,6 +886,7 @@ function handleEmployeeForm(e) {
     }
   } else {
     state.employees.push(entry);
+    ensureEmployeeInLayout(entry.id);
     editing.employee = entry.id;
     employeePicker.value = entry.id;
   }
@@ -525,6 +895,7 @@ function handleEmployeeForm(e) {
   renderEmployees();
   renderRoster();
   fillEmployeeForm(entry);
+  renderVacationPanel(entry);
 }
 
 function handleServiceForm(e) {
@@ -655,63 +1026,28 @@ function renderRoster() {
   buildRosterHeader(currentMonth);
   const monthKey = getMonthKey(currentMonth);
   const days = daysInMonth(currentMonth);
+  cleanSelectedRows();
+  const employees = getOrderedEmployees();
+  const renderedGroups = new Set();
 
-  state.employees.forEach((emp) => {
-    const tr = document.createElement('tr');
-    const employment = state.employment.find((e) => e.id === emp.employmentHours);
-    const assignedHours = hoursForEmployee(monthKey, emp.id);
-    const remainingHours = (employment?.hours ?? 0) - assignedHours;
-    const remainingClass = remainingHours < 0 ? 'hours-remaining negative' : 'hours-remaining';
-    tr.innerHTML = `
-      <td class="names col-info">
-        <div class="info-cell">
-          <span class="emp-name">${formatName(emp)}</span>
-          <span class="emp-pnr">${emp.personnelNumber}</span>
-        </div>
-      </td>
-      <td class="names col-hours">
-        <div class="hours-cell">
-          <span class="hours-target">${employment?.hours ?? '–'} Std</span>
-          <span class="${remainingClass}">${formatHours(remainingHours)} Std</span>
-        </div>
-      </td>
-    `;
-    for (let day = 1; day <= days; day++) {
-      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const cls = ['day-col'];
-      if (isHoliday(d)) cls.push('holiday');
-      else if (d.getDay() === 0) cls.push('weekend');
-      else if (d.getDay() === 6) cls.push('saturday');
-      const assign = state.assignments?.[monthKey]?.[emp.id]?.[day] ?? '';
-      const locked = !!state.locks?.[monthKey]?.[emp.id]?.[day];
-      const selectId = `${emp.id}-${day}`;
-      const serviceOptions = allowedServicesForEmployee(emp, assign);
-      const options = ['<option value="">–</option>']
-        .concat(serviceOptions.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
-        .join('');
-      const td = document.createElement('td');
-      td.className = cls.join(' ');
-      td.innerHTML = `
-        <div class="cell">
-          <select data-emp="${emp.id}" data-day="${day}" id="sel-${selectId}" ${locked ? 'disabled' : ''}>${options}</select>
-          <label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>
-        </div>
-      `;
-      tr.appendChild(td);
+  employees.forEach((emp) => {
+    if (emp.groupId) {
+      const group = state.groups.find((g) => g.id === emp.groupId);
+      if (group && !renderedGroups.has(group.id)) {
+        rosterTable.appendChild(buildGroupRow(group, days));
+        renderedGroups.add(group.id);
+      }
     }
-    rosterTable.appendChild(tr);
+    rosterTable.appendChild(buildEmployeeRow(emp, monthKey, days));
   });
 
   const unassignedRow = document.createElement('tr');
   unassignedRow.className = 'unassigned-row';
   unassignedRow.innerHTML = `
-    <td class="names col-info">
+    <td class="names col-info" colspan="2">
       <div class="info-cell">
         <span class="emp-name">Nicht verplante Dienste</span>
       </div>
-    </td>
-    <td class="names col-hours">
-      <div class="hours-cell"></div>
     </td>
   `;
   for (let day = 1; day <= days; day++) {
@@ -734,6 +1070,232 @@ function renderRoster() {
   rosterTable.appendChild(unassignedRow);
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+  if (editing.employee) {
+    const currentEmp = state.employees.find((e) => e.id === editing.employee);
+    if (currentEmp) renderVacationPanel(currentEmp);
+  }
+  updateRowToolStates();
+}
+
+function buildGroupRow(group, days) {
+  const tr = document.createElement('tr');
+  tr.className = 'group-row';
+  tr.dataset.groupId = group.id;
+  const infoCell = document.createElement('td');
+  infoCell.className = 'group-name names col-info';
+  infoCell.colSpan = 2;
+  infoCell.innerHTML = `
+    <div class="group-header">
+      <strong>${group.name}</strong>
+      <span class="group-header__actions">
+        <button type="button" class="ghost" data-rename-group="${group.id}">Umbenennen</button>
+        <button type="button" class="ghost" data-delete-group="${group.id}">Gruppe löschen</button>
+      </span>
+    </div>
+  `;
+  tr.appendChild(infoCell);
+  for (let i = 0; i < days; i++) {
+    const spacer = document.createElement('td');
+    spacer.className = 'group-spacer day-col';
+    tr.appendChild(spacer);
+  }
+  return tr;
+}
+
+function buildEmployeeRow(emp, monthKey, days) {
+  const tr = document.createElement('tr');
+  tr.dataset.empRow = emp.id;
+  const employment = state.employment.find((e) => e.id === emp.employmentHours);
+  const assignedHours = hoursForEmployee(monthKey, emp.id);
+  const remainingHours = (employment?.hours ?? 0) - assignedHours;
+  const remainingClass = remainingHours < 0 ? 'hours-remaining negative' : 'hours-remaining';
+  const selected = selectedRows.has(emp.id) ? 'checked' : '';
+  const nameCell = document.createElement('td');
+  nameCell.className = 'names col-info';
+  nameCell.innerHTML = `
+    <div class="row-header">
+      <label class="sr-only" for="row-select-${emp.id}">Mitarbeiter auswählen</label>
+      <input type="checkbox" id="row-select-${emp.id}" data-row-select="${emp.id}" ${selected}>
+      <button type="button" class="drag-handle" data-drag-handle draggable="true" aria-label="Zeile verschieben">⋮⋮</button>
+      <div class="info-cell">
+        <span class="emp-name">${formatName(emp)}</span>
+        <span class="emp-pnr">${emp.personnelNumber}</span>
+      </div>
+    </div>
+  `;
+  tr.appendChild(nameCell);
+
+  const hoursCell = document.createElement('td');
+  hoursCell.className = 'names col-hours';
+  hoursCell.innerHTML = `
+    <div class="hours-cell">
+      <span class="hours-target">${employment?.hours ?? '–'} Std</span>
+      <span class="${remainingClass}">${formatHours(remainingHours)} Std</span>
+    </div>
+  `;
+  tr.appendChild(hoursCell);
+
+  for (let day = 1; day <= days; day++) {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const cls = ['day-col'];
+    if (isHoliday(d)) cls.push('holiday');
+    else if (d.getDay() === 0) cls.push('weekend');
+    else if (d.getDay() === 6) cls.push('saturday');
+    const monthAssignments = state.assignments[monthKey] || {};
+    const monthLocks = state.locks[monthKey] || {};
+    const assign = monthAssignments[emp.id]?.[day] ?? '';
+    const locked = !!monthLocks[emp.id]?.[day];
+    const serviceOptions = allowedServicesForEmployee(emp, assign);
+    const options = ['<option value="">–</option>']
+      .concat(serviceOptions.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
+      .join('');
+    const td = document.createElement('td');
+    const vacationEntry = findVacationOnDate(emp, d);
+    const isBirthday = hasBirthdayOnDate(emp, d);
+    if (vacationEntry) cls.push('vacation');
+    td.className = cls.join(' ');
+    const selectDisabled = locked || !serviceOptions.length;
+    const parts = ['<div class="cell">'];
+    if (isBirthday) {
+      parts.push('<span class="birthday-flag" title="Geburtstag">🎂</span>');
+    }
+    if (vacationEntry) {
+      parts.push(`<span class="vacation-pill" title="Urlaub">Urlaub</span>`);
+    } else {
+      parts.push(`<select data-emp="${emp.id}" data-day="${day}" ${selectDisabled ? 'disabled' : ''}>${options}</select>`);
+      parts.push(`<label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>`);
+    }
+    parts.push('</div>');
+    td.innerHTML = parts.join('');
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+function handleCreateGroup() {
+  if (!selectedRows.size) return;
+  const name = prompt('Name der neuen Gruppe', 'Neue Gruppe');
+  if (!name) return;
+  const group = { id: uuid(), name: name.trim() || 'Neue Gruppe' };
+  state.groups.push(group);
+  selectedRows.forEach((id) => {
+    const emp = state.employees.find((e) => e.id === id);
+    if (emp) emp.groupId = group.id;
+  });
+  saveState();
+  updateGroupPicker();
+  renderEmployees();
+  renderRoster();
+}
+
+function handleAssignGroup() {
+  if (!selectedRows.size || !groupSelect.value) return;
+  selectedRows.forEach((id) => {
+    const emp = state.employees.find((e) => e.id === id);
+    if (emp) emp.groupId = groupSelect.value;
+  });
+  saveState();
+  renderRoster();
+}
+
+function handleRemoveGroup() {
+  if (!selectedRows.size) return;
+  selectedRows.forEach((id) => {
+    const emp = state.employees.find((e) => e.id === id);
+    if (emp) emp.groupId = null;
+  });
+  saveState();
+  renderRoster();
+}
+
+function renameGroup(groupId) {
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+  const name = prompt('Neuer Gruppenname', group.name);
+  if (!name) return;
+  group.name = name.trim() || group.name;
+  saveState();
+  updateGroupPicker();
+  renderRoster();
+}
+
+function deleteGroup(groupId) {
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return;
+  if (!confirm(`Gruppe "${group.name}" wirklich löschen?`)) return;
+  state.groups = state.groups.filter((g) => g.id !== groupId);
+  state.employees.forEach((emp) => {
+    if (emp.groupId === groupId) emp.groupId = null;
+  });
+  if (groupSelect.value === groupId) groupSelect.value = '';
+  saveState();
+  updateGroupPicker();
+  renderEmployees();
+  renderRoster();
+}
+
+function handleRosterClick(event) {
+  const renameBtn = event.target instanceof Element ? event.target.closest('[data-rename-group]') : null;
+  if (renameBtn) {
+    renameGroup(renameBtn.dataset.renameGroup);
+    return;
+  }
+  const deleteBtn = event.target instanceof Element ? event.target.closest('[data-delete-group]') : null;
+  if (deleteBtn) {
+    deleteGroup(deleteBtn.dataset.deleteGroup);
+  }
+}
+
+function handleRowDragStart(event) {
+  const handle = event.target instanceof Element ? event.target.closest('[data-drag-handle]') : null;
+  if (!handle) return;
+  const row = handle.closest('tr[data-emp-row]');
+  if (!row) return;
+  draggingRowId = row.dataset.empRow;
+  row.classList.add('dragging');
+  event.dataTransfer.setData('text/plain', draggingRowId);
+  event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleRowDragOver(event) {
+  if (!draggingRowId) return;
+  const row = event.target instanceof Element ? event.target.closest('tr[data-emp-row]') : null;
+  if (!row || row.dataset.empRow === draggingRowId) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleRowDrop(event) {
+  if (!draggingRowId) return;
+  const row = event.target instanceof Element ? event.target.closest('tr[data-emp-row]') : null;
+  if (!row || row.dataset.empRow === draggingRowId) return;
+  event.preventDefault();
+  const targetId = row.dataset.empRow;
+  const rect = row.getBoundingClientRect();
+  const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  reorderRows(draggingRowId, targetId, position);
+  finishRowDrag();
+}
+
+function handleRowDragEnd() {
+  finishRowDrag();
+}
+
+function finishRowDrag() {
+  const active = rosterTable.querySelector('tr.dragging');
+  if (active) active.classList.remove('dragging');
+  draggingRowId = null;
+}
+
+function reorderRows(sourceId, targetId, position) {
+  if (sourceId === targetId) return;
+  const order = state.layout.order.filter((id) => id !== sourceId);
+  const targetIndex = order.indexOf(targetId);
+  const insertIndex = targetIndex === -1 ? order.length : targetIndex + (position === 'after' ? 1 : 0);
+  order.splice(insertIndex, 0, sourceId);
+  state.layout.order = order;
+  saveState();
+  renderRoster();
 }
 
 function ensureMonthMaps(monthKey) {
@@ -742,6 +1304,14 @@ function ensureMonthMaps(monthKey) {
 }
 
 function handleRosterChange(e) {
+  if (e.target.matches('input[type="checkbox"][data-row-select]')) {
+    const id = e.target.dataset.rowSelect;
+    if (!id) return;
+    if (e.target.checked) selectedRows.add(id);
+    else selectedRows.delete(id);
+    updateRowToolStates();
+    return;
+  }
   if (e.target.matches('select[data-emp]')) {
     const emp = e.target.dataset.emp;
     const day = Number(e.target.dataset.day);
@@ -827,10 +1397,12 @@ function generateRoster() {
       state.employees
         .filter((emp) => {
           const func = state.functions.find((f) => f.id === emp.functionId);
-          const allowed = func?.serviceIds.includes(service.id);
+          const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
+          if (!allowed) return false;
+          if (findVacationOnDate(emp, currentDate)) return false;
           const isNight = /nacht/i.test(service.name);
           if (isNight && !emp.nightAllowed) return false;
-          return allowed;
+          return true;
         })
         .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
         .some((emp) => {
@@ -870,12 +1442,14 @@ function handleEmployeePickerChange() {
   if (!id) {
     editing.employee = null;
     employeeForm.reset();
+    renderVacationPanel(null);
     return;
   }
   const emp = state.employees.find((e) => e.id === id);
   if (emp) {
     editing.employee = id;
     fillEmployeeForm(emp);
+    renderVacationPanel(emp);
   }
 }
 
@@ -932,6 +1506,11 @@ function wireEvents() {
   employmentForm.addEventListener('submit', handleEmploymentForm);
   rulesForm.addEventListener('submit', handleRulesForm);
   rosterTable.addEventListener('change', handleRosterChange);
+  rosterTable.addEventListener('click', handleRosterClick);
+  rosterTable.addEventListener('dragstart', handleRowDragStart);
+  rosterTable.addEventListener('dragover', handleRowDragOver);
+  rosterTable.addEventListener('drop', handleRowDrop);
+  rosterTable.addEventListener('dragend', handleRowDragEnd);
   employeePicker.addEventListener('change', handleEmployeePickerChange);
   servicePicker.addEventListener('change', handleServicePickerChange);
   functionPicker.addEventListener('change', handleFunctionPickerChange);
@@ -952,6 +1531,12 @@ function wireEvents() {
       loadFileInput.value = '';
     });
   });
+  if (addVacationBtn) addVacationBtn.addEventListener('click', handleAddVacation);
+  if (vacationList) vacationList.addEventListener('click', handleVacationListClick);
+  if (createGroupBtn) createGroupBtn.addEventListener('click', handleCreateGroup);
+  if (assignGroupBtn) assignGroupBtn.addEventListener('click', handleAssignGroup);
+  if (removeGroupBtn) removeGroupBtn.addEventListener('click', handleRemoveGroup);
+  if (groupSelect) groupSelect.addEventListener('change', updateRowToolStates);
   syncEmploymentHours();
 }
 

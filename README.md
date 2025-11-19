@@ -5,13 +5,15 @@ Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für
 ## Funktionsumfang
 - **Admin-Menüs** für Mitarbeitende, Dienste, Funktionen, Anstellungsverhältnisse, Regeln.
 - **Mitarbeitende**: Vor-/Nachname, Personalnummer, Geburtstag, Anstellung (%/Stunden), Funktion, Nachtdienst- und RKT-Checkboxen.
+- **Urlaubsverwaltung**: Anspruch in Tagen pro Jahr, beliebig viele Urlaube mit Zeitraum; automatische Resturlaub-Berechnung pro Kalenderjahr samt Warnung bei Überschreitung und Anzeige im Kalender.
 - **Dienste**: Name und Zeitfenster (von/bis). Die Dauer wird automatisch berechnet.
 - **Funktionen**: Diensten zuordenbar; Funktionen können Mitarbeitenden zugewiesen werden.
 - **Anstellungsverhältnisse**: Prozent und Stunden pro Monat; Auswahl der % füllt automatisch die Stunden im Mitarbeitenden-Formular.
 - **Regeln**: Ruhezeiten nach Diensten, maximale Wochen-/Monatsstunden, Wochenenden, Nachtdienste sowie Pflichtdienste pro Wochentag **und** österreichischem Feiertag (Salzburg) – Diensten lassen sich komfortabel hinzufügen oder entfernen.
-- **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer, Stundensoll und „Noch zu verplanen“; Spalten für alle Tage des Monats mit Wochentag unter dem Datum und je Zelle ein eigenes Dropdown.
+- **Raster-Ansicht**: Linke Spalte mit Name, Personalnummer, Stundensoll und „Noch zu verplanen“; Spalten für alle Tage des Monats mit Wochentag unter dem Datum und je Zelle ein eigenes Dropdown plus Geburtstags-Icon und Urlaubs-Markierung.
 - **Offene Dienste**: Unterhalb des Kalenders zeigt eine zusätzliche Zeile pro Tag alle noch unbesetzten Dienste an – sobald alles geplant ist, färbt sich die Zelle grün.
 - **Farbcodierung**: Dezente Samstags-/Sonntags-/Feiertags-Hintergründe sorgen für Orientierung, ohne die Lesbarkeit zu beeinträchtigen.
+- **Reihenfolge & Gruppen**: Dienstplan-Zeilen lassen sich per Drag & Drop umsortieren, sammeln und mit Gruppenüberschriften versehen; Auswahlboxen mit Gruppenaktionen erleichtern die Strukturierung.
 - **Navigation**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Menüs; Monate per Pfeiltaste oder Buttons wechseln, Start immer im aktuellen Monat.
 - **Interaktion**: Zellen per Dropdown setzen, sperren und für die Auto-Generierung ausnehmen; Button „Dienstplan generieren“ verteilt hinterlegte Dienste nach Funktion und Regeln ausschließlich auf Mitarbeitende mit passenden Funktionen.
 

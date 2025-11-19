@@ -50,6 +50,23 @@
             <button id="generatePlan" type="button" class="primary">Dienstplan generieren</button>
           </div>
         </div>
+        <div class="row-tools">
+          <div>
+            <p class="eyebrow">Zeilen &amp; Gruppen</p>
+            <div class="row-tool-buttons">
+              <button type="button" id="createGroupBtn" class="ghost" disabled>Gruppe aus Auswahl</button>
+              <div class="group-picker">
+                <label for="groupSelect" class="sr-only">Gruppe auswählen</label>
+                <select id="groupSelect">
+                  <option value="">Gruppe wählen…</option>
+                </select>
+                <button type="button" id="assignGroupBtn" class="ghost" disabled>Zu Gruppe</button>
+              </div>
+              <button type="button" id="removeGroupBtn" class="ghost" disabled>Aus Gruppe lösen</button>
+            </div>
+            <p class="muted small">Zeilen per Drag &amp; Drop sortieren. Checkbox links nutzen, um mehrere Mitarbeitende für eine Gruppe auszuwählen.</p>
+          </div>
+        </div>
         <div class="table-wrapper roster">
           <table id="rosterTable" aria-describedby="monthLabel"></table>
         </div>
@@ -79,6 +96,7 @@
             <label>Funktion
               <select name="functionId" id="functionSelect"></select>
             </label>
+            <label>Urlaubstage pro Jahr<input type="number" name="vacationDays" min="0" step="1" required></label>
             <label class="checkbox">
               <input type="checkbox" name="nightAllowed"> Nachtdienst Ja/Nein
             </label>
@@ -90,6 +108,18 @@
               <button type="reset" class="ghost">Felder leeren</button>
             </div>
           </form>
+          <div class="vacation-panel" id="vacationPanel" hidden>
+            <div class="vacation-panel__header">
+              <h3>Urlaube</h3>
+              <p class="muted" id="vacationBalance"></p>
+            </div>
+            <div class="vacation-controls">
+              <label>Von<input type="date" id="vacationStart"></label>
+              <label>Bis<input type="date" id="vacationEnd"></label>
+              <button type="button" id="addVacation" class="ghost">Urlaub hinzufügen</button>
+            </div>
+            <ul id="vacationList" class="vacation-list"></ul>
+          </div>
           <div class="list" id="employeeList" aria-live="polite"></div>
         </div>
       </section>
