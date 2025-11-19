@@ -141,6 +141,7 @@ const DEFAULT_LOGS = {
   employment: [],
   rules: [],
   vacationLimits: [],
+  tickets: [],
 };
 
 const defaultWeekdayServices = () => ({
@@ -262,6 +263,7 @@ const vacationLimitEnd = document.getElementById('vacationLimitEnd');
 const vacationLimitValue = document.getElementById('vacationLimitValue');
 const vacationLimitList = document.getElementById('vacationLimitList');
 const vacationChart = document.getElementById('vacationChart');
+const ticketLog = document.getElementById('ticketLog');
 const vacationDefaultInput = document.getElementById('vacationDefault');
 const weekdayRangeStart = document.getElementById('weekdayRangeStart');
 const weekdayRangeEnd = document.getElementById('weekdayRangeEnd');
@@ -270,6 +272,7 @@ const menuEmployeeAlert = document.getElementById('menuEmployeeAlert');
 const openSickIndicator = document.getElementById('openSickIndicator');
 const logElements = {
   roster: document.getElementById('rosterLog'),
+  tickets: ticketLog,
 };
 
 let state = loadState();
@@ -999,6 +1002,25 @@ function expandDateRange(startStr, endStr) {
 function countVacationsOnDate(date) {
   if (!date) return 0;
   return state.employees.filter((emp) => isEmployeeActiveOnDate(emp, date) && !!findVacationOnDate(emp, date)).length;
+}
+
+function employeesOnVacation(date) {
+  if (!date) return [];
+  return state.employees
+    .filter((emp) => isEmployeeActiveOnDate(emp, date))
+    .map((emp) => ({ emp, vacation: findVacationOnDate(emp, date) }))
+    .filter((entry) => !!entry.vacation)
+    .map(({ emp }) => formatName(emp));
+}
+
+function vacationHeaderData(date) {
+  const names = employeesOnVacation(date);
+  const limit = getVacationLimitForDate(date);
+  return {
+    names,
+    count: names.length,
+    limit,
+  };
 }
 
 function weekendKeyForDate(date) {
@@ -2183,10 +2205,11 @@ function setRosterMode(mode) {
 
 function buildRosterHeader(date) {
   const days = daysInMonth(date);
-  const headerRows = [document.createElement('tr'), document.createElement('tr')];
+  const headerRows = [document.createElement('tr'), document.createElement('tr'), document.createElement('tr')];
+  headerRows[2].className = 'vacation-summary-row';
   const stickyCells = [
-    '<th class="names col-info" rowspan="2"><div class="info-header"><span>Name</span><span>Personalnummer</span></div></th>',
-    '<th class="names col-hours" rowspan="2"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span><span>Nachtdienste</span><span>Feiertagsdienste</span></div></th>',
+    '<th class="names col-info" rowspan="3"><div class="info-header"><span>Name</span><span>Personalnummer</span></div></th>',
+    '<th class="names col-hours" rowspan="3"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span><span>Nachtdienste</span><span>Feiertagsdienste</span></div></th>',
   ];
   stickyCells.forEach((html) => headerRows[0].insertAdjacentHTML('beforeend', html));
   for (let day = 1; day <= days; day++) {
@@ -2196,8 +2219,23 @@ function buildRosterHeader(date) {
     if (isHoliday(d)) cls.push('holiday');
     else if (d.getDay() === 0) cls.push('weekend');
     else if (d.getDay() === 6) cls.push('saturday');
-    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${cls.join(' ')}" colspan="1">${label}</th>`);
-    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${cls.join(' ')}">${day}</th>`);
+    const baseClass = cls.join(' ');
+    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${baseClass}" colspan="1">${label}</th>`);
+    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${baseClass}">${day}</th>`);
+    const vacData = vacationHeaderData(d);
+    const summaryClasses = cls.slice();
+    summaryClasses.push('vacation-summary');
+    if (vacData.limit && vacData.count >= vacData.limit) {
+      summaryClasses.push('limit-hit');
+    }
+    const displayedNames = vacData.names.slice(0, 3).map((name) => escapeHtml(name));
+    const overflow = vacData.count > 3 ? ` +${vacData.count - 3}` : '';
+    const namesLabel = vacData.count ? `${displayedNames.join(', ')}${overflow}` : '–';
+    const countLabel = vacData.limit ? `${vacData.count}/${vacData.limit}` : `${vacData.count}`;
+    headerRows[2].insertAdjacentHTML(
+      'beforeend',
+      `<th class="${summaryClasses.join(' ')}"><div class="day-vacations"><span class="vacation-count">Urlaub ${countLabel}</span><span class="vacation-names">${namesLabel}</span></div></th>`
+    );
   }
   rosterTable.innerHTML = '';
   headerRows.forEach((row) => rosterTable.appendChild(row));
@@ -2338,7 +2376,6 @@ function buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty) {
   `;
   tr.appendChild(hoursCell);
 
-  const fullMonthAvailability = isEmployeeFullMonth(emp, currentMonth);
   for (let day = 1; day <= days; day++) {
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const cls = ['day-col'];
@@ -2350,7 +2387,7 @@ function buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty) {
     const monthLocks = state.locks[monthKey] || {};
     let assign = monthAssignments[emp.id]?.[day] ?? '';
     const locked = !!monthLocks[emp.id]?.[day];
-    const canAssign = fullMonthAvailability && activeOnDate;
+    const canAssign = activeOnDate;
     if (!canAssign && assign && monthAssignments[emp.id]) {
       delete monthAssignments[emp.id][day];
       assign = '';
@@ -2702,10 +2739,12 @@ function generateRoster() {
   const totalWeekends = totalWeekendsInMonth(currentMonth);
   const minFreeWeekends = Number(rules.minFreeWeekends) || 0;
   const allowedWorkedWeekends = Math.max(totalWeekends - minFreeWeekends, 0);
-  const orderedEmployees = getOrderedEmployees().filter((emp) => isEmployeeFullMonth(emp, currentMonth));
+  const orderedEmployees = getOrderedEmployees().filter((emp) => isEmployeeActiveInMonth(emp, currentMonth));
   const rawPivot = Number(state.layout?.generatorPivot) || 0;
   const pivot = orderedEmployees.length ? rawPivot % orderedEmployees.length : 0;
   const rotated = orderedEmployees.slice(pivot).concat(orderedEmployees.slice(0, pivot));
+  const fairnessIndex = new Map();
+  rotated.forEach((emp, index) => fairnessIndex.set(emp.id, index));
   const weekendSets = new Map();
   const getWeekendSet = (empId) => {
     if (!weekendSets.has(empId)) {
@@ -2717,6 +2756,7 @@ function generateRoster() {
   // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
   state.employees.forEach((emp) => {
     if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
+    if (!state.locks[monthKey][emp.id]) state.locks[monthKey][emp.id] = {};
     for (let day = 1; day <= days; day++) {
       const locked = state.locks[monthKey]?.[emp.id]?.[day];
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
@@ -2734,55 +2774,69 @@ function generateRoster() {
   for (let day = 1; day <= days; day++) {
     const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const servicesForDay = getRequiredServicesForDate(currentDate);
-    for (const service of servicesForDay) {
-      rotated
-        .filter((emp) => {
-          if (!isEmployeeActiveOnDate(emp, currentDate)) return false;
+    servicesForDay.forEach((service) => {
+      const serviceHours = serviceDuration(service);
+      const tolerance = serviceHours / 2;
+      const candidates = rotated
+        .map((emp) => {
+          if (!isEmployeeActiveOnDate(emp, currentDate)) return null;
           const func = state.functions.find((f) => f.id === emp.functionId);
-          const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
-          if (!allowed) return false;
-          if (findVacationOnDate(emp, currentDate)) return false;
-          if (findSickOnDate(emp, currentDate)) return false;
-          if (isNightService(service) && !emp.nightAllowed) return false;
-          return true;
-        })
-        .some((emp) => {
-          ensureMonthMaps(monthKey);
+          if (!Array.isArray(func?.serviceIds) || !func.serviceIds.includes(service.id)) return null;
+          if (findVacationOnDate(emp, currentDate)) return null;
+          if (findSickOnDate(emp, currentDate)) return null;
+          if (isNightService(service) && !emp.nightAllowed) return null;
+          const empAssignments = state.assignments[monthKey][emp.id] || {};
           const locked = state.locks[monthKey]?.[emp.id]?.[day];
-          if (locked) return false;
-          if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
-          const already = state.assignments[monthKey][emp.id][day];
-          if (already) return false;
-          if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return false;
+          if (locked || empAssignments[day]) return null;
+          if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return null;
           if (isNightService(service) && !emp.doubleNights) {
-            const prev = state.assignments[monthKey][emp.id][day - 1];
-            if (prev) {
-              const prevService = state.services.find((s) => s.id === prev);
-              if (isNightService(prevService)) return false;
+            const prevServiceId = empAssignments[day - 1];
+            if (prevServiceId) {
+              const prevService = state.services.find((s) => s.id === prevServiceId);
+              if (isNightService(prevService)) return null;
             }
           }
           const targetHours = monthlyTargetHours(emp, currentMonth);
-          const nextHours = hoursForEmployee(monthKey, emp.id) + serviceDuration(service);
-          if (targetHours && nextHours > targetHours) return false;
+          if (!targetHours) return null;
+          const assignedHours = hoursForEmployee(monthKey, emp.id);
+          const projectedHours = assignedHours + serviceHours;
+          const projectedRemaining = targetHours - projectedHours;
+          if (projectedRemaining < -tolerance) return null;
           const nextNights = countNights(monthKey, emp.id) + (isNightService(service) ? 1 : 0);
-          if (rules.maxNights && nextNights > rules.maxNights) return false;
+          if (rules.maxNights && nextNights > rules.maxNights) return null;
           if (isWeekend(currentDate)) {
             const weekendKey = weekendKeyForDate(currentDate);
             const set = getWeekendSet(emp.id);
             if (weekendKey && !set.has(weekendKey) && set.size >= allowedWorkedWeekends) {
-              return false;
+              return null;
             }
           }
-          state.assignments[monthKey][emp.id][day] = service.id;
-          if (isWeekend(currentDate)) {
-            const weekendKey = weekendKeyForDate(currentDate);
-            if (weekendKey) {
-              getWeekendSet(emp.id).add(weekendKey);
-            }
-          }
-          return true;
+          const remainingBefore = targetHours - assignedHours;
+          return {
+            emp,
+            absRemaining: Math.abs(projectedRemaining),
+            remainingBefore,
+            projectedRemaining,
+            fairness: fairnessIndex.get(emp.id) || 0,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (a.absRemaining !== b.absRemaining) return a.absRemaining - b.absRemaining;
+          if (a.remainingBefore !== b.remainingBefore) return b.remainingBefore - a.remainingBefore;
+          return a.fairness - b.fairness;
         });
-    }
+      candidates.some(({ emp }) => {
+        state.assignments[monthKey][emp.id][day] = service.id;
+        if (isWeekend(currentDate)) {
+          const weekendKey = weekendKeyForDate(currentDate);
+          if (weekendKey) {
+            getWeekendSet(emp.id).add(weekendKey);
+          }
+        }
+        return true;
+      });
+    });
   }
   const label = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
   state.layout.generatorPivot = rotated.length ? (pivot + 1) % rotated.length : 0;

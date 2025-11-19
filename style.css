@@ -370,7 +370,15 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 .table-wrapper { overflow: auto; border: 1px solid var(--border); border-radius: .75rem; }
 .table-wrapper.roster { padding: .5rem; background: #0b1224; }
 
-#rosterTable { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1100px; color: var(--text); font-size: .9rem; }
+#rosterTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 1100px;
+  color: var(--text);
+  font-size: .9rem;
+  table-layout: fixed;
+}
 #rosterTable th, #rosterTable td { border: 1px solid #1f2937; padding: .4rem .35rem; text-align: center; }
 #rosterTable th { background: #0f172a; position: sticky; top: 0; z-index: 2; }
 #rosterTable th.names { position: sticky; z-index: 3; background: #0b1224; }
@@ -385,6 +393,14 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 
 .day-label { display: flex; flex-direction: column; gap: .15rem; font-size: .85rem; font-weight: 500; }
 .day-label span:first-child { font-weight: 700; }
+.vacation-summary-row th { font-size: .7rem; background: #0b1324; color: var(--muted); }
+.day-vacations { display: flex; flex-direction: column; gap: .1rem; }
+.day-vacations span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-vacations .vacation-count { font-weight: 600; color: var(--text); font-size: .65rem; }
+.day-vacations .vacation-names { font-size: .65rem; color: var(--muted); }
+.vacation-summary { background: rgba(15, 23, 42, 0.85); }
+.vacation-summary.limit-hit { background: rgba(248, 113, 113, 0.2); color: #fecaca; }
+.light-theme .vacation-summary.limit-hit { color: #7f1d1d; }
 
 .sr-only {
   position: absolute;
@@ -663,6 +679,8 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
   background: #0b1224;
   padding: .5rem 1rem;
 }
+.log-panel.inline-log { background: rgba(15, 23, 42, 0.5); }
+.light-theme .log-panel.inline-log { background: rgba(226, 232, 240, 0.8); }
 .log-panel summary {
   list-style: none;
   cursor: pointer;
@@ -724,12 +742,23 @@ input:focus, select:focus { outline: 2px solid #22d3ee55; border-color: #22d3ee;
 
 @media print {
   body { background: #fff; color: #000; }
-  .page-header, .main-menu, .mode-toggle, .actions button, .log-panel, .menu-file-actions, .menu-row-tools { display: none !important; }
-  .layout { grid-template-columns: 1fr; }
-  .panel { border: none; background: #fff; color: #000; }
-  #rosterTable th, #rosterTable td { border-color: #999; color: #000; }
+  .page-header,
+  .main-menu,
+  .mode-toggle,
+  .actions,
+  .log-panel,
+  .menu-file-actions,
+  .menu-row-tools,
+  .roster-vacations { display: none !important; }
+  .layout { grid-template-columns: 1fr; padding: 0; }
+  .content-area { gap: .5rem; }
+  .panel { border: none; background: #fff; color: #000; box-shadow: none; }
+  #rosterTable { min-width: auto; font-size: .65rem; }
+  #rosterTable th, #rosterTable td { border-color: #999; color: #000; padding: .2rem; }
+  #rosterTable th.day-col, #rosterTable td.day-col { min-width: auto; width: 42px; }
   .holiday, .saturday, .weekend { color: #000; }
-  .service-legend { color: #000; }
+  .service-legend { color: #000; font-size: .6rem; }
+  .service-legend span { border: none; background: transparent; padding: 0; }
   .unassigned-row { display: none; }
   @page { size: A4 landscape; margin: 1cm; }
 }

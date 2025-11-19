@@ -58,6 +58,17 @@
           </div>
         </div>
       </details>
+      <details class="menu-accordion">
+        <summary>
+          <span class="menu-icon" aria-hidden="true">🎟️</span>
+          <span>Tickets</span>
+        </summary>
+        <div class="menu-accordion__body">
+          <div class="menu-group__items">
+            <button type="button" data-target="tickets">Tickets</button>
+          </div>
+        </div>
+      </details>
     </nav>
 
     <div class="content-area">
@@ -409,6 +420,26 @@
               </div>
             </form>
             <div class="list" id="vacationLimitList" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel admin" data-screen="tickets" hidden>
+        <div class="panel__header">
+          <h2>Tickets</h2>
+          <p class="muted">Verwalte Änderungs- oder Supportanfragen (Platzhalter).</p>
+        </div>
+        <div class="admin-panel">
+          <p class="muted">Die Ticketverwaltung wird nach Bedarf ausgebaut. Bis dahin dient der Log als Sammelstelle für Ereignisse.</p>
+          <section class="overview-block">
+            <div class="overview-header">
+              <p class="eyebrow">Aktivität</p>
+              <h3>Tickets-Log</h3>
+            </div>
+            <details class="log-panel inline-log">
+              <summary>Log anzeigen</summary>
+              <ul id="ticketLog" class="log-list"></ul>
+            </details>
           </section>
         </div>
       </section>
