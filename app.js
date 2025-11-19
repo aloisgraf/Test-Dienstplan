@@ -633,18 +633,19 @@ function buildRosterHeader(date) {
   const days = daysInMonth(date);
   const headerRows = [document.createElement('tr'), document.createElement('tr')];
   const stickyCells = [
-    '<th class="names col-name" rowspan="2">Name</th>',
-    '<th class="names col-pnr" rowspan="2">Personalnummer</th>',
-    '<th class="names col-soll" rowspan="2">Stundensoll</th>',
-    '<th class="names col-remaining" rowspan="2">Noch zu verplanen</th>',
+    '<th class="names col-info" rowspan="2"><div class="info-header"><span>Name</span><span>Personalnummer</span></div></th>',
+    '<th class="names col-hours" rowspan="2"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span></div></th>',
   ];
   stickyCells.forEach((html) => headerRows[0].insertAdjacentHTML('beforeend', html));
   for (let day = 1; day <= days; day++) {
     const d = new Date(date.getFullYear(), date.getMonth(), day);
     const label = `<div class="day-label"><span>${day}.${String(date.getMonth() + 1).padStart(2, '0')}.</span><span>${weekdayLabel(d)}</span></div>`;
-    const cls = [isWeekend(d) ? 'weekend' : '', d.getDay() === 6 ? 'saturday' : '', isHoliday(d) ? 'holiday' : ''].filter(Boolean).join(' ');
-    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${cls}" colspan="1">${label}</th>`);
-    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${cls}">${day}</th>`);
+    const cls = ['day-col'];
+    if (isHoliday(d)) cls.push('holiday');
+    else if (d.getDay() === 0) cls.push('weekend');
+    else if (d.getDay() === 6) cls.push('saturday');
+    headerRows[0].insertAdjacentHTML('beforeend', `<th class="${cls.join(' ')}" colspan="1">${label}</th>`);
+    headerRows[1].insertAdjacentHTML('beforeend', `<th class="${cls.join(' ')}">${day}</th>`);
   }
   rosterTable.innerHTML = '';
   headerRows.forEach((row) => rosterTable.appendChild(row));
@@ -660,16 +661,24 @@ function renderRoster() {
     const employment = state.employment.find((e) => e.id === emp.employmentHours);
     const assignedHours = hoursForEmployee(monthKey, emp.id);
     const remainingHours = (employment?.hours ?? 0) - assignedHours;
-    const remainingClass = remainingHours < 0 ? 'remaining negative' : 'remaining';
+    const remainingClass = remainingHours < 0 ? 'hours-remaining negative' : 'hours-remaining';
     tr.innerHTML = `
-      <td class="names col-name">${formatName(emp)}</td>
-      <td class="names col-pnr">${emp.personnelNumber}</td>
-      <td class="names col-soll">${employment?.hours ?? '–'} Std</td>
-      <td class="names col-remaining ${remainingClass}">${formatHours(remainingHours)} Std</td>
+      <td class="names col-info">
+        <div class="info-cell">
+          <span class="emp-name">${formatName(emp)}</span>
+          <span class="emp-pnr">${emp.personnelNumber}</span>
+        </div>
+      </td>
+      <td class="names col-hours">
+        <div class="hours-cell">
+          <span class="hours-target">${employment?.hours ?? '–'} Std</span>
+          <span class="${remainingClass}">${formatHours(remainingHours)} Std</span>
+        </div>
+      </td>
     `;
     for (let day = 1; day <= days; day++) {
       const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const cls = [];
+      const cls = ['day-col'];
       if (isHoliday(d)) cls.push('holiday');
       else if (d.getDay() === 0) cls.push('weekend');
       else if (d.getDay() === 6) cls.push('saturday');
@@ -696,15 +705,19 @@ function renderRoster() {
   const unassignedRow = document.createElement('tr');
   unassignedRow.className = 'unassigned-row';
   unassignedRow.innerHTML = `
-    <td class="names col-name">Nicht verplante Dienste</td>
-    <td class="names col-pnr"></td>
-    <td class="names col-soll"></td>
-    <td class="names col-remaining"></td>
+    <td class="names col-info">
+      <div class="info-cell">
+        <span class="emp-name">Nicht verplante Dienste</span>
+      </div>
+    </td>
+    <td class="names col-hours">
+      <div class="hours-cell"></div>
+    </td>
   `;
   for (let day = 1; day <= days; day++) {
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const remaining = remainingServicesForDay(day, monthKey, d);
-    const cls = ['unassigned-cell'];
+    const cls = ['unassigned-cell', 'day-col'];
     if (isHoliday(d)) cls.push('holiday');
     else if (d.getDay() === 0) cls.push('weekend');
     else if (d.getDay() === 6) cls.push('saturday');
