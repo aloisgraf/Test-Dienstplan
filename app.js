@@ -635,7 +635,7 @@ function renderRoster() {
     `;
     for (let day = 1; day <= days; day++) {
       const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const cls = ['cell'];
+      const cls = [];
       if (isHoliday(d)) cls.push('holiday');
       else if (d.getDay() === 0) cls.push('weekend');
       else if (d.getDay() === 6) cls.push('saturday');
