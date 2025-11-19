@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   locks: 'dienstplan_locks',
   groups: 'dienstplan_groups',
   layout: 'dienstplan_layout',
+  logs: 'dienstplan_logs',
 };
 
 const STORAGE_FILE_NAME = 'dienstplan_daten.json';
@@ -50,9 +51,12 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     functionId: functions[0].id,
     vacationDays: 25,
     vacations: [],
+    sickLeaves: [],
     groupId: null,
     nightAllowed: true,
     rkt: false,
+    holidayFactor: 0,
+    dailyWorkHours: 8,
   },
   {
     id: uuid(),
@@ -65,9 +69,12 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     functionId: functions[1].id,
     vacationDays: 25,
     vacations: [],
+    sickLeaves: [],
     groupId: null,
     nightAllowed: true,
     rkt: true,
+    holidayFactor: 0,
+    dailyWorkHours: 8,
   },
   {
     id: uuid(),
@@ -80,11 +87,23 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     functionId: functions[0].id,
     vacationDays: 25,
     vacations: [],
+    sickLeaves: [],
     groupId: null,
     nightAllowed: false,
     rkt: false,
+    holidayFactor: 0,
+    dailyWorkHours: 8,
   },
 ];
+
+const DEFAULT_LOGS = {
+  roster: [],
+  employees: [],
+  services: [],
+  functions: [],
+  employment: [],
+  rules: [],
+};
 
 const DEFAULT_RULES = {
   restDays: 1,
@@ -157,12 +176,27 @@ const createGroupBtn = document.getElementById('createGroupBtn');
 const assignGroupBtn = document.getElementById('assignGroupBtn');
 const removeGroupBtn = document.getElementById('removeGroupBtn');
 const groupSelect = document.getElementById('groupSelect');
+const rowToolsMenu = document.getElementById('rowToolsMenu');
 const vacationPanel = document.getElementById('vacationPanel');
 const vacationBalance = document.getElementById('vacationBalance');
 const vacationStartInput = document.getElementById('vacationStart');
 const vacationEndInput = document.getElementById('vacationEnd');
 const addVacationBtn = document.getElementById('addVacation');
 const vacationList = document.getElementById('vacationList');
+const sickPanel = document.getElementById('sickPanel');
+const sickStartInput = document.getElementById('sickStart');
+const sickEndInput = document.getElementById('sickEnd');
+const sickConfirmedInput = document.getElementById('sickConfirmed');
+const addSickBtn = document.getElementById('addSick');
+const sickList = document.getElementById('sickList');
+const logElements = {
+  roster: document.getElementById('rosterLog'),
+  employees: document.getElementById('employeesLog'),
+  services: document.getElementById('servicesLog'),
+  functions: document.getElementById('functionsLog'),
+  employment: document.getElementById('employmentLog'),
+  rules: document.getElementById('rulesLog'),
+};
 
 let state = loadState();
 let currentMonth = new Date();
@@ -189,8 +223,9 @@ function loadState() {
   const sanitizedGroups = sanitizeGroups(groups);
   const employees = normalizeEmployees(employeesRaw, sanitizedGroups);
   const layout = ensureLayout(loadValue(STORAGE_KEYS.layout, null), employees);
+  const logs = ensureLogs(loadValue(STORAGE_KEYS.logs, DEFAULT_LOGS));
   cleanEmployeeGroups(employees, sanitizedGroups);
-  return { employment, services, functions, employees, rules, assignments, locks, groups: sanitizedGroups, layout };
+  return { employment, services, functions, employees, rules, assignments, locks, groups: sanitizedGroups, layout, logs };
 }
 
 function loadArray(key, fallback) {
@@ -235,10 +270,15 @@ function sanitizeGroups(groups = []) {
 function normalizeEmployees(employees = [], groups = []) {
   return employees.map((emp) => {
     const vacationDays = Number(emp.vacationDays);
+    const holidayFactor = Number(emp.holidayFactor);
+    const dailyWorkHours = Number(emp.dailyWorkHours);
     const normalized = {
       ...emp,
       vacationDays: Number.isFinite(vacationDays) ? vacationDays : 0,
       vacations: normalizeVacationEntries(emp.vacations),
+      sickLeaves: normalizeSickEntries(emp.sickLeaves),
+      holidayFactor: Number.isFinite(holidayFactor) ? holidayFactor : 0,
+      dailyWorkHours: Number.isFinite(dailyWorkHours) ? dailyWorkHours : 0,
       groupId: emp.groupId && groups.some((g) => g.id === emp.groupId) ? emp.groupId : null,
     };
     return normalized;
@@ -263,6 +303,25 @@ function normalizeVacationEntries(entries = []) {
     .sort((a, b) => a.start.localeCompare(b.start));
 }
 
+function normalizeSickEntries(entries = []) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => {
+      const start = parseISODate(entry?.start);
+      const end = parseISODate(entry?.end);
+      if (!start || !end) return null;
+      const ordered = start <= end ? { start, end } : { start: end, end: start };
+      return {
+        id: entry.id || uuid(),
+        start: formatISODate(ordered.start),
+        end: formatISODate(ordered.end),
+        confirmed: !!entry.confirmed,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
 function ensureLayout(layout, employees) {
   const ids = employees.map((emp) => emp.id);
   if (!layout || !Array.isArray(layout.order)) {
@@ -273,6 +332,23 @@ function ensureLayout(layout, employees) {
     if (!order.includes(id)) order.push(id);
   });
   return { order };
+}
+
+function ensureLogs(logs = DEFAULT_LOGS) {
+  const target = {};
+  Object.keys(DEFAULT_LOGS).forEach((key) => {
+    const list = Array.isArray(logs?.[key]) ? logs[key] : [];
+    target[key] = list
+      .filter((entry) => entry && typeof entry.message === 'string')
+      .map((entry) => ({
+        id: entry.id || uuid(),
+        message: entry.message,
+        timestamp: Number(entry.timestamp) || Date.now(),
+      }))
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 200);
+  });
+  return target;
 }
 
 function cleanEmployeeGroups(employees, groups) {
@@ -338,6 +414,13 @@ function updateRowToolStates() {
   createGroupBtn.disabled = !hasSelection;
   assignGroupBtn.disabled = !hasSelection || !groupSelect.value;
   removeGroupBtn.disabled = !hasSelection || !selectedRowsHaveGroup();
+  if (rowToolsMenu) {
+    if (hasSelection) {
+      rowToolsMenu.removeAttribute('hidden');
+    } else {
+      rowToolsMenu.setAttribute('hidden', '');
+    }
+  }
 }
 
 function saveState() {
@@ -350,6 +433,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.locks, JSON.stringify(state.locks));
   localStorage.setItem(STORAGE_KEYS.groups, JSON.stringify(state.groups));
   localStorage.setItem(STORAGE_KEYS.layout, JSON.stringify(state.layout));
+  localStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(state.logs));
 }
 
 function downloadStateFile() {
@@ -384,6 +468,7 @@ function importState(json) {
       locks: parsed.locks ?? {},
       groups: parsedGroups,
       layout: ensureLayout(parsed.layout, employees),
+      logs: ensureLogs(parsed.logs ?? DEFAULT_LOGS),
     };
     cleanEmployeeGroups(state.employees, state.groups);
     editing.employee = null;
@@ -396,6 +481,7 @@ function importState(json) {
     functionForm.reset();
     employmentForm.reset();
     renderVacationPanel(null);
+    renderSickPanel(null);
     saveState();
     updateDropdowns();
     renderEmployees();
@@ -404,6 +490,7 @@ function importState(json) {
     renderEmployment();
     renderRules();
     renderRoster();
+    renderLogs();
   } catch (e) {
     alert('Konnte Datei nicht laden. Bitte prüfen, ob es eine gültige JSON-Datei ist.');
     console.error(e);
@@ -414,8 +501,45 @@ function formatName(emp) {
   return `${emp.firstName} ${emp.lastName}`;
 }
 
+function formatLogTimestamp(ts) {
+  const date = new Date(ts);
+  return date.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function appendLog(section, message) {
+  if (!state.logs[section]) state.logs[section] = [];
+  state.logs[section].unshift({ id: uuid(), message, timestamp: Date.now() });
+  state.logs[section] = state.logs[section].slice(0, 200);
+  renderLogs(section);
+}
+
+function renderLogs(section) {
+  const sections = section ? [section] : Object.keys(logElements);
+  sections.forEach((key) => {
+    const target = logElements[key];
+    if (!target) return;
+    const entries = state.logs?.[key] || [];
+    if (!entries.length) {
+      target.innerHTML = '<li class="muted">Noch keine Einträge</li>';
+      return;
+    }
+    target.innerHTML = entries
+      .map((entry) => `<li><strong>${formatLogTimestamp(entry.timestamp)}</strong><span>${entry.message}</span></li>`)
+      .join('');
+  });
+}
+
 function getMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthKeyToDate(key) {
+  if (typeof key !== 'string') return null;
+  const [yearStr, monthStr] = key.split('-');
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) return null;
+  return new Date(year, monthIndex, 1);
 }
 
 function parseISODate(value) {
@@ -500,6 +624,40 @@ function remainingVacationDays(emp, year) {
   return total - (usage[year] || 0);
 }
 
+function vacationStats(emp) {
+  const allowance = Number(emp.vacationDays) || 0;
+  const usage = vacationUsageByYear(emp);
+  const currentYear = currentMonth.getFullYear();
+  const nextYear = currentYear + 1;
+  const summaryYears = new Set([currentYear, nextYear]);
+  Object.keys(usage).forEach((year) => summaryYears.add(Number(year)));
+  const stats = Array.from(summaryYears)
+    .filter((year) => Number.isFinite(year))
+    .sort((a, b) => a - b)
+    .map((year) => ({
+      year,
+      used: usage[year] || 0,
+      remaining: Math.max(allowance - (usage[year] || 0), 0),
+    }));
+  return { allowance, stats };
+}
+
+function vacationBalanceText(emp) {
+  const { allowance, stats } = vacationStats(emp);
+  const base = `Anspruch: ${allowance} Tage`;
+  const rest = stats.map((entry) => `${entry.year}: ${entry.remaining} Tage frei (${entry.used} verplant)`);
+  return [base].concat(rest).join(' · ');
+}
+
+function employeeVacationLine(emp) {
+  const { allowance, stats } = vacationStats(emp);
+  const currentYear = currentMonth.getFullYear();
+  const nextYear = currentYear + 1;
+  const current = stats.find((entry) => entry.year === currentYear) || { remaining: allowance };
+  const next = stats.find((entry) => entry.year === nextYear) || { remaining: allowance };
+  return `Urlaub: ${allowance} Tage · ${currentYear}: ${current.remaining} offen · ${nextYear}: ${next.remaining} offen`;
+}
+
 function calculateVacationDays(startStr, endStr) {
   const breakdown = vacationBreakdown(startStr, endStr);
   return Object.values(breakdown).reduce((sum, days) => sum + days, 0);
@@ -526,6 +684,18 @@ function findVacationOnDate(emp, date) {
   });
 }
 
+function findSickOnDate(emp, date) {
+  if (!emp.sickLeaves?.length) return null;
+  return emp.sickLeaves.find((entry) => {
+    const start = parseISODate(entry.start);
+    const end = parseISODate(entry.end);
+    if (!start || !end) return false;
+    const begin = start <= end ? start : end;
+    const finish = start <= end ? end : start;
+    return date >= begin && date <= finish;
+  });
+}
+
 function hasBirthdayOnDate(emp, date) {
   if (!emp.birthday) return false;
   const birthday = parseISODate(emp.birthday);
@@ -533,7 +703,7 @@ function hasBirthdayOnDate(emp, date) {
   return birthday.getDate() === date.getDate() && birthday.getMonth() === date.getMonth();
 }
 
-function clearAssignmentsForVacationRange(empId, startStr, endStr) {
+function clearAssignmentsForRange(empId, startStr, endStr) {
   const start = parseISODate(startStr);
   const end = parseISODate(endStr);
   if (!start || !end) return;
@@ -648,7 +818,7 @@ function renderEmployees() {
     const percent = state.employment.find((e) => e.id === emp.employmentPercent);
     const hours = state.employment.find((e) => e.id === emp.employmentHours);
     const func = state.functions.find((f) => f.id === emp.functionId);
-    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'} · Urlaub: ${emp.vacationDays ?? 0} Tage</small></div></div>`;
+    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'} · ${employeeVacationLine(emp)}</small></div></div>`;
   }).join('');
 }
 
@@ -661,10 +831,7 @@ function renderVacationPanel(emp) {
     return;
   }
   vacationPanel.hidden = false;
-  const currentYear = currentMonth.getFullYear();
-  const remaining = remainingVacationDays(emp, currentYear);
-  const usage = vacationUsageByYear(emp)[currentYear] || 0;
-  vacationBalance.textContent = `Anspruch: ${emp.vacationDays ?? 0} Tage · ${currentYear}: ${Math.max(remaining, 0)} Tage frei (${usage} verplant)`;
+  vacationBalance.textContent = vacationBalanceText(emp);
   if (!emp.vacations?.length) {
     vacationList.innerHTML = '<li class="muted">Noch kein Urlaub eingetragen</li>';
     return;
@@ -678,9 +845,31 @@ function renderVacationPanel(emp) {
     .join('');
 }
 
+function renderSickPanel(emp) {
+  if (!sickPanel) return;
+  if (!emp) {
+    sickPanel.hidden = true;
+    sickList.innerHTML = '';
+    return;
+  }
+  sickPanel.hidden = false;
+  if (!emp.sickLeaves?.length) {
+    sickList.innerHTML = '<li class="muted">Noch kein Krankenstand eingetragen</li>';
+    return;
+  }
+  const entries = emp.sickLeaves.slice().sort((a, b) => a.start.localeCompare(b.start));
+  sickList.innerHTML = entries
+    .map((entry) => {
+      const days = calculateVacationDays(entry.start, entry.end);
+      const status = entry.confirmed ? 'Meldung erhalten' : 'keine Meldung';
+      return `<li><div><strong>${formatVacationRange(entry)}</strong><span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${status}</span></div><button type="button" class="ghost" data-remove-sick="${entry.id}">Entfernen</button></li>`;
+    })
+    .join('');
+}
+
 function handleAddVacation() {
   if (!editing.employee) {
-    alert('Bitte zuerst einen Mitarbeitenden auswählen.');
+    alert('Bitte zuerst einen Mitarbeiter auswählen.');
     return;
   }
   const emp = state.employees.find((e) => e.id === editing.employee);
@@ -705,7 +894,8 @@ function handleAddVacation() {
   }
   const entry = { id: uuid(), start: ordered.start, end: ordered.end };
   emp.vacations.push(entry);
-  clearAssignmentsForVacationRange(emp.id, entry.start, entry.end);
+  clearAssignmentsForRange(emp.id, entry.start, entry.end);
+  appendLog('employees', `Urlaub ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`);
   saveState();
   renderVacationPanel(emp);
   renderRoster();
@@ -719,10 +909,58 @@ function handleVacationListClick(event) {
   if (!editing.employee) return;
   const emp = state.employees.find((e) => e.id === editing.employee);
   if (!emp) return;
+  const entry = emp.vacations.find((v) => v.id === button.dataset.removeVacation);
+  if (!entry) return;
   if (!confirm('Diesen Urlaub wirklich entfernen?')) return;
   emp.vacations = emp.vacations.filter((entry) => entry.id !== button.dataset.removeVacation);
+  appendLog('employees', `Urlaub ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`);
   saveState();
   renderVacationPanel(emp);
+  renderRoster();
+}
+
+function handleAddSick() {
+  if (!editing.employee) {
+    alert('Bitte zuerst einen Mitarbeiter auswählen.');
+    return;
+  }
+  const emp = state.employees.find((e) => e.id === editing.employee);
+  if (!emp) return;
+  if (!sickStartInput.value) {
+    alert('Bitte ein Startdatum wählen.');
+    return;
+  }
+  const start = sickStartInput.value;
+  const end = sickEndInput.value || sickStartInput.value;
+  const ordered = start <= end ? { start, end } : { start: end, end: start };
+  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: sickConfirmedInput.checked };
+  emp.sickLeaves.push(entry);
+  clearAssignmentsForRange(emp.id, entry.start, entry.end);
+  appendLog(
+    'employees',
+    `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert${entry.confirmed ? ' (Meldung erhalten)' : ''}.`
+  );
+  saveState();
+  renderSickPanel(emp);
+  renderRoster();
+  sickStartInput.value = '';
+  sickEndInput.value = '';
+  sickConfirmedInput.checked = false;
+}
+
+function handleSickListClick(event) {
+  const button = event.target instanceof Element ? event.target.closest('[data-remove-sick]') : null;
+  if (!button) return;
+  if (!editing.employee) return;
+  const emp = state.employees.find((e) => e.id === editing.employee);
+  if (!emp) return;
+  const entry = emp.sickLeaves.find((s) => s.id === button.dataset.removeSick);
+  if (!entry) return;
+  if (!confirm('Diesen Krankenstand wirklich entfernen?')) return;
+  emp.sickLeaves = emp.sickLeaves.filter((s) => s.id !== entry.id);
+  appendLog('employees', `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`);
+  saveState();
+  renderSickPanel(emp);
   renderRoster();
 }
 
@@ -833,6 +1071,8 @@ function fillEmployeeForm(emp) {
   form.employmentHours.value = emp.employmentHours || '';
   form.functionId.value = emp.functionId || '';
   form.vacationDays.value = emp.vacationDays ?? 0;
+  form.holidayFactor.value = emp.holidayFactor ?? 0;
+  form.dailyWorkHours.value = emp.dailyWorkHours ?? 0;
   form.nightAllowed.checked = !!emp.nightAllowed;
   form.rkt.checked = !!emp.rkt;
 }
@@ -861,10 +1101,12 @@ function fillEmploymentForm(entry) {
 function handleEmployeeForm(e) {
   e.preventDefault();
   const data = new FormData(employeeForm);
-  const existing = editing.employee ? state.employees.find((emp) => emp.id === editing.employee) : null;
+  const isUpdate = !!editing.employee;
+  const existing = isUpdate ? state.employees.find((emp) => emp.id === editing.employee) : null;
   const entry = {
     id: editing.employee ?? uuid(),
     vacations: existing?.vacations ? clone(existing.vacations) : [],
+    sickLeaves: existing?.sickLeaves ? clone(existing.sickLeaves) : [],
     groupId: existing?.groupId || null,
     firstName: data.get('firstName').trim(),
     lastName: data.get('lastName').trim(),
@@ -874,11 +1116,13 @@ function handleEmployeeForm(e) {
     employmentHours: data.get('employmentHours'),
     functionId: data.get('functionId'),
     vacationDays: Number(data.get('vacationDays')) || 0,
+    holidayFactor: Number(data.get('holidayFactor')) || 0,
+    dailyWorkHours: Number(data.get('dailyWorkHours')) || 0,
     nightAllowed: data.get('nightAllowed') === 'on',
     rkt: data.get('rkt') === 'on',
   };
 
-  if (editing.employee) {
+  if (isUpdate) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.employees.findIndex((emp) => emp.id === editing.employee);
     if (idx !== -1) {
@@ -890,20 +1134,30 @@ function handleEmployeeForm(e) {
     editing.employee = entry.id;
     employeePicker.value = entry.id;
   }
+  appendLog('employees', `Mitarbeiter ${formatName(entry)} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
   saveState();
   updateDropdowns();
   renderEmployees();
   renderRoster();
   fillEmployeeForm(entry);
   renderVacationPanel(entry);
+  renderSickPanel(entry);
+}
+
+function handleEmployeeFormReset() {
+  editing.employee = null;
+  employeePicker.value = '';
+  renderVacationPanel(null);
+  renderSickPanel(null);
 }
 
 function handleServiceForm(e) {
   e.preventDefault();
   const data = new FormData(serviceForm);
+  const isUpdate = !!editing.service;
   const entry = { id: editing.service ?? uuid(), name: data.get('name').trim(), start: data.get('start'), end: data.get('end') };
 
-  if (editing.service) {
+  if (isUpdate) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.services.findIndex((s) => s.id === editing.service);
     if (idx !== -1) state.services[idx] = entry;
@@ -912,6 +1166,7 @@ function handleServiceForm(e) {
     editing.service = entry.id;
     servicePicker.value = entry.id;
   }
+  appendLog('services', `Dienst ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
   saveState();
   updateDropdowns();
   renderServices();
@@ -924,10 +1179,11 @@ function handleServiceForm(e) {
 function handleFunctionForm(e) {
   e.preventDefault();
   const data = new FormData(functionForm);
+  const isUpdate = !!editing.function;
   const serviceIds = data.getAll('serviceIds');
   const entry = { id: editing.function ?? uuid(), name: data.get('name').trim(), serviceIds };
 
-  if (editing.function) {
+  if (isUpdate) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.functions.findIndex((f) => f.id === editing.function);
     if (idx !== -1) state.functions[idx] = entry;
@@ -936,6 +1192,7 @@ function handleFunctionForm(e) {
     editing.function = entry.id;
     functionPicker.value = entry.id;
   }
+  appendLog('functions', `Funktion ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
   saveState();
   updateDropdowns();
   renderFunctions();
@@ -946,9 +1203,10 @@ function handleFunctionForm(e) {
 function handleEmploymentForm(e) {
   e.preventDefault();
   const data = new FormData(employmentForm);
+  const isUpdate = !!editing.employment;
   const entry = { id: editing.employment ?? uuid(), percent: Number(data.get('percent')), hours: Number(data.get('hours')) };
 
-  if (editing.employment) {
+  if (isUpdate) {
     if (!confirm('Wollen Sie die Änderungen wirklich speichern?')) return;
     const idx = state.employment.findIndex((eItem) => eItem.id === editing.employment);
     if (idx !== -1) state.employment[idx] = entry;
@@ -957,6 +1215,7 @@ function handleEmploymentForm(e) {
     editing.employment = entry.id;
     employmentPicker.value = entry.id;
   }
+  appendLog('employment', `Anstellungsverhältnis ${entry.percent}% · ${entry.hours} Std ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
   saveState();
   updateDropdowns();
   renderEmployment();
@@ -976,6 +1235,7 @@ function handleRulesForm(e) {
     maxNights: toNumber(data.get('maxNights')),
     weekdayServices: ensureWeekdaySelections(weekdaySelections),
   };
+  appendLog('rules', 'Regelwerk aktualisiert.');
   saveState();
   renderRules();
   renderRoster();
@@ -1072,7 +1332,10 @@ function renderRoster() {
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
   if (editing.employee) {
     const currentEmp = state.employees.find((e) => e.id === editing.employee);
-    if (currentEmp) renderVacationPanel(currentEmp);
+    if (currentEmp) {
+      renderVacationPanel(currentEmp);
+      renderSickPanel(currentEmp);
+    }
   }
   updateRowToolStates();
 }
@@ -1151,16 +1414,23 @@ function buildEmployeeRow(emp, monthKey, days) {
       .join('');
     const td = document.createElement('td');
     const vacationEntry = findVacationOnDate(emp, d);
+    const sickEntry = findSickOnDate(emp, d);
     const isBirthday = hasBirthdayOnDate(emp, d);
     if (vacationEntry) cls.push('vacation');
+    if (sickEntry) cls.push('sick');
     td.className = cls.join(' ');
-    const selectDisabled = locked || !serviceOptions.length;
+    const selectDisabled = locked || !serviceOptions.length || vacationEntry || sickEntry;
     const parts = ['<div class="cell">'];
     if (isBirthday) {
       parts.push('<span class="birthday-flag" title="Geburtstag">🎂</span>');
     }
-    if (vacationEntry) {
-      parts.push(`<span class="vacation-pill" title="Urlaub">Urlaub</span>`);
+    if (vacationEntry || sickEntry) {
+      if (vacationEntry) {
+        parts.push('<span class="absence-pill vacation" title="Urlaub">U</span>');
+      } else if (sickEntry) {
+        const status = sickEntry.confirmed ? 'Krankenstand – Meldung erhalten' : 'Krankenstand';
+        parts.push(`<span class="absence-pill sick" title="${status}">K</span>`);
+      }
     } else {
       parts.push(`<select data-emp="${emp.id}" data-day="${day}" ${selectDisabled ? 'disabled' : ''}>${options}</select>`);
       parts.push(`<label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>`);
@@ -1182,6 +1452,7 @@ function handleCreateGroup() {
     const emp = state.employees.find((e) => e.id === id);
     if (emp) emp.groupId = group.id;
   });
+  appendLog('roster', `Gruppe "${group.name}" mit ${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} erstellt.`);
   saveState();
   updateGroupPicker();
   renderEmployees();
@@ -1190,10 +1461,15 @@ function handleCreateGroup() {
 
 function handleAssignGroup() {
   if (!selectedRows.size || !groupSelect.value) return;
+  const group = state.groups.find((g) => g.id === groupSelect.value);
   selectedRows.forEach((id) => {
     const emp = state.employees.find((e) => e.id === id);
     if (emp) emp.groupId = groupSelect.value;
   });
+  appendLog(
+    'roster',
+    `${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} der Gruppe "${group?.name || 'Unbekannt'}" zugewiesen.`
+  );
   saveState();
   renderRoster();
 }
@@ -1204,6 +1480,7 @@ function handleRemoveGroup() {
     const emp = state.employees.find((e) => e.id === id);
     if (emp) emp.groupId = null;
   });
+  appendLog('roster', `${selectedRows.size} Mitarbeiter${selectedRows.size === 1 ? '' : 'n'} aus Gruppen gelöst.`);
   saveState();
   renderRoster();
 }
@@ -1211,9 +1488,11 @@ function handleRemoveGroup() {
 function renameGroup(groupId) {
   const group = state.groups.find((g) => g.id === groupId);
   if (!group) return;
+  const previous = group.name;
   const name = prompt('Neuer Gruppenname', group.name);
   if (!name) return;
   group.name = name.trim() || group.name;
+  appendLog('roster', `Gruppe "${previous}" in "${group.name}" umbenannt.`);
   saveState();
   updateGroupPicker();
   renderRoster();
@@ -1228,6 +1507,7 @@ function deleteGroup(groupId) {
     if (emp.groupId === groupId) emp.groupId = null;
   });
   if (groupSelect.value === groupId) groupSelect.value = '';
+  appendLog('roster', `Gruppe "${group.name}" gelöscht.`);
   saveState();
   updateGroupPicker();
   renderEmployees();
@@ -1294,6 +1574,8 @@ function reorderRows(sourceId, targetId, position) {
   const insertIndex = targetIndex === -1 ? order.length : targetIndex + (position === 'after' ? 1 : 0);
   order.splice(insertIndex, 0, sourceId);
   state.layout.order = order;
+  const emp = state.employees.find((e) => e.id === sourceId);
+  appendLog('roster', `Zeile ${emp ? formatName(emp) : sourceId} verschoben.`);
   saveState();
   renderRoster();
 }
@@ -1356,10 +1638,28 @@ function countNights(monthKey, empId) {
 
 function hoursForEmployee(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
-  return Object.values(assignments).reduce((sum, serviceId) => {
+  let total = Object.values(assignments).reduce((sum, serviceId) => {
     const service = state.services.find((s) => s.id === serviceId);
     return service ? sum + serviceDuration(service) : sum;
   }, 0);
+  const emp = state.employees.find((e) => e.id === empId);
+  const baseDate = monthKeyToDate(monthKey);
+  if (!emp || !baseDate) return total;
+  const days = daysInMonth(baseDate);
+  const holidayFactor = Number(emp.holidayFactor) || 0;
+  const dailyHours = Number(emp.dailyWorkHours) || 0;
+  for (let day = 1; day <= days; day++) {
+    const date = new Date(baseDate.getFullYear(), baseDate.getMonth(), day);
+    if (holidayFactor && isHoliday(date)) {
+      total += holidayFactor;
+    }
+    if (dailyHours) {
+      if (findVacationOnDate(emp, date) || findSickOnDate(emp, date)) {
+        total += dailyHours;
+      }
+    }
+  }
+  return total;
 }
 
 function workedRecently(empId, day, restDays) {
@@ -1394,16 +1694,17 @@ function generateRoster() {
     const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const servicesForDay = getRequiredServicesForDate(currentDate);
     for (const service of servicesForDay) {
-      state.employees
-        .filter((emp) => {
-          const func = state.functions.find((f) => f.id === emp.functionId);
-          const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
-          if (!allowed) return false;
-          if (findVacationOnDate(emp, currentDate)) return false;
-          const isNight = /nacht/i.test(service.name);
-          if (isNight && !emp.nightAllowed) return false;
-          return true;
-        })
+          state.employees
+            .filter((emp) => {
+              const func = state.functions.find((f) => f.id === emp.functionId);
+              const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
+              if (!allowed) return false;
+              if (findVacationOnDate(emp, currentDate)) return false;
+              if (findSickOnDate(emp, currentDate)) return false;
+              const isNight = /nacht/i.test(service.name);
+              if (isNight && !emp.nightAllowed) return false;
+              return true;
+            })
         .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
         .some((emp) => {
           ensureMonthMaps(monthKey);
@@ -1424,6 +1725,8 @@ function generateRoster() {
         });
     }
   }
+  const label = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+  appendLog('roster', `Dienstplan für ${label} generiert.`);
   saveState();
   renderRoster();
 }
@@ -1443,6 +1746,7 @@ function handleEmployeePickerChange() {
     editing.employee = null;
     employeeForm.reset();
     renderVacationPanel(null);
+    renderSickPanel(null);
     return;
   }
   const emp = state.employees.find((e) => e.id === id);
@@ -1450,6 +1754,7 @@ function handleEmployeePickerChange() {
     editing.employee = id;
     fillEmployeeForm(emp);
     renderVacationPanel(emp);
+    renderSickPanel(emp);
   }
 }
 
@@ -1501,6 +1806,7 @@ function handleEmploymentPickerChange() {
 function wireEvents() {
   menuButtons.forEach((btn) => btn.addEventListener('click', () => showScreen(btn.dataset.target)));
   employeeForm.addEventListener('submit', handleEmployeeForm);
+  employeeForm.addEventListener('reset', handleEmployeeFormReset);
   serviceForm.addEventListener('submit', handleServiceForm);
   functionForm.addEventListener('submit', handleFunctionForm);
   employmentForm.addEventListener('submit', handleEmploymentForm);
@@ -1515,11 +1821,27 @@ function wireEvents() {
   servicePicker.addEventListener('change', handleServicePickerChange);
   functionPicker.addEventListener('change', handleFunctionPickerChange);
   employmentPicker.addEventListener('change', handleEmploymentPickerChange);
-  prevMonthBtn.addEventListener('click', () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderRoster(); });
-  nextMonthBtn.addEventListener('click', () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderRoster(); });
+  prevMonthBtn.addEventListener('click', () => {
+    currentMonth.setMonth(currentMonth.getMonth() - 1);
+    renderRoster();
+    renderEmployees();
+  });
+  nextMonthBtn.addEventListener('click', () => {
+    currentMonth.setMonth(currentMonth.getMonth() + 1);
+    renderRoster();
+    renderEmployees();
+  });
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') { currentMonth.setMonth(currentMonth.getMonth() - 1); renderRoster(); }
-    if (e.key === 'ArrowRight') { currentMonth.setMonth(currentMonth.getMonth() + 1); renderRoster(); }
+    if (e.key === 'ArrowLeft') {
+      currentMonth.setMonth(currentMonth.getMonth() - 1);
+      renderRoster();
+      renderEmployees();
+    }
+    if (e.key === 'ArrowRight') {
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+      renderRoster();
+      renderEmployees();
+    }
   });
   generateBtn.addEventListener('click', generateRoster);
   saveFileBtn.addEventListener('click', downloadStateFile);
@@ -1533,6 +1855,8 @@ function wireEvents() {
   });
   if (addVacationBtn) addVacationBtn.addEventListener('click', handleAddVacation);
   if (vacationList) vacationList.addEventListener('click', handleVacationListClick);
+  if (addSickBtn) addSickBtn.addEventListener('click', handleAddSick);
+  if (sickList) sickList.addEventListener('click', handleSickListClick);
   if (createGroupBtn) createGroupBtn.addEventListener('click', handleCreateGroup);
   if (assignGroupBtn) assignGroupBtn.addEventListener('click', handleAssignGroup);
   if (removeGroupBtn) removeGroupBtn.addEventListener('click', handleRemoveGroup);
@@ -1550,6 +1874,7 @@ function init() {
   setupWeekdayInteractions();
   renderRules();
   renderRoster();
+  renderLogs();
   wireEvents();
 }
 

@@ -11,18 +11,33 @@
     <div>
       <p class="eyebrow">Dienstplanung · Salzburg</p>
       <h1>Dienstplan- und Admin-Console</h1>
-      <p class="lede">Verwalte Mitarbeitende, Dienste, Funktionen, Anstellungsverhältnisse und Regeln. Generiere den Monatsplan und passe einzelne Zellen mit Sperrfunktion an.</p>
+      <p class="lede">Verwalte Mitarbeiter, Dienste, Funktionen, Anstellungsverhältnisse und Regeln. Generiere den Monatsplan und passe einzelne Zellen mit Sperrfunktion an.</p>
     </div>
   </header>
 
   <main class="layout">
     <nav class="main-menu" aria-label="Hauptmenü">
       <button type="button" data-target="roster" class="active">Dienstplan</button>
-      <button type="button" data-target="employees">Mitarbeitende</button>
+      <button type="button" data-target="employees">Mitarbeiter</button>
       <button type="button" data-target="services">Dienste</button>
       <button type="button" data-target="functions">Funktionen</button>
       <button type="button" data-target="employment">Anstellungsverhältnisse</button>
       <button type="button" data-target="rules">Regeln</button>
+      <div class="menu-row-tools" id="rowToolsMenu" hidden>
+        <p class="eyebrow">Zeilen &amp; Gruppen</p>
+        <div class="row-tool-buttons">
+          <button type="button" id="createGroupBtn" class="ghost" disabled>Neue Gruppe</button>
+          <div class="group-picker">
+            <label for="groupSelect" class="sr-only">Gruppe auswählen</label>
+            <select id="groupSelect">
+              <option value="">Gruppe wählen…</option>
+            </select>
+            <button type="button" id="assignGroupBtn" class="ghost" disabled>Zu Gruppe</button>
+          </div>
+          <button type="button" id="removeGroupBtn" class="ghost" disabled>Aus Gruppe lösen</button>
+        </div>
+        <p class="muted small">Zeilen per Drag &amp; Drop sortieren. Checkbox links nutzen, um mehrere Mitarbeiter für eine Gruppe auszuwählen.</p>
+      </div>
       <div class="menu-file-actions" aria-label="Datenspeicherung">
         <p class="eyebrow">Datenablage</p>
         <p class="muted">Exportiere den aktuellen Stand oder lade eine gesicherte JSON-Datei erneut.</p>
@@ -50,31 +65,18 @@
             <button id="generatePlan" type="button" class="primary">Dienstplan generieren</button>
           </div>
         </div>
-        <div class="row-tools">
-          <div>
-            <p class="eyebrow">Zeilen &amp; Gruppen</p>
-            <div class="row-tool-buttons">
-              <button type="button" id="createGroupBtn" class="ghost" disabled>Gruppe aus Auswahl</button>
-              <div class="group-picker">
-                <label for="groupSelect" class="sr-only">Gruppe auswählen</label>
-                <select id="groupSelect">
-                  <option value="">Gruppe wählen…</option>
-                </select>
-                <button type="button" id="assignGroupBtn" class="ghost" disabled>Zu Gruppe</button>
-              </div>
-              <button type="button" id="removeGroupBtn" class="ghost" disabled>Aus Gruppe lösen</button>
-            </div>
-            <p class="muted small">Zeilen per Drag &amp; Drop sortieren. Checkbox links nutzen, um mehrere Mitarbeitende für eine Gruppe auszuwählen.</p>
-          </div>
-        </div>
         <div class="table-wrapper roster">
           <table id="rosterTable" aria-describedby="monthLabel"></table>
+        </div>
+        <div class="log-panel">
+          <p class="eyebrow">Log</p>
+          <ul id="rosterLog" class="log-list"></ul>
         </div>
       </section>
 
       <section class="panel admin" data-screen="employees" hidden>
         <div class="panel__header">
-          <h2>Mitarbeitende</h2>
+          <h2>Mitarbeiter</h2>
         </div>
         <div class="admin-panel">
           <div class="picker-row">
@@ -96,6 +98,8 @@
             <label>Funktion
               <select name="functionId" id="functionSelect"></select>
             </label>
+            <label>Durchrechnungsfaktor<input type="number" name="holidayFactor" min="0" step="0.25" value="0"></label>
+            <label>Tägliche Sollarbeitszeit<input type="number" name="dailyWorkHours" min="0" step="0.25" value="0"></label>
             <label>Urlaubstage pro Jahr<input type="number" name="vacationDays" min="0" step="1" required></label>
             <label class="checkbox">
               <input type="checkbox" name="nightAllowed"> Nachtdienst Ja/Nein
@@ -120,7 +124,25 @@
             </div>
             <ul id="vacationList" class="vacation-list"></ul>
           </div>
+          <div class="vacation-panel" id="sickPanel" hidden>
+            <div class="vacation-panel__header">
+              <h3>Krankenstände</h3>
+            </div>
+            <div class="vacation-controls">
+              <label>Von<input type="date" id="sickStart"></label>
+              <label>Bis<input type="date" id="sickEnd"></label>
+              <label class="checkbox inline">
+                <input type="checkbox" id="sickConfirmed"> Krankmeldung erhalten
+              </label>
+              <button type="button" id="addSick" class="ghost">Krankenstand hinzufügen</button>
+            </div>
+            <ul id="sickList" class="vacation-list"></ul>
+          </div>
           <div class="list" id="employeeList" aria-live="polite"></div>
+          <div class="log-panel">
+            <p class="eyebrow">Log</p>
+            <ul id="employeesLog" class="log-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -144,6 +166,10 @@
             </div>
           </form>
           <div class="list" id="serviceList" aria-live="polite"></div>
+          <div class="log-panel">
+            <p class="eyebrow">Log</p>
+            <ul id="servicesLog" class="log-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -168,6 +194,10 @@
             </div>
           </form>
           <div class="list" id="functionList" aria-live="polite"></div>
+          <div class="log-panel">
+            <p class="eyebrow">Log</p>
+            <ul id="functionsLog" class="log-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -190,6 +220,10 @@
             </div>
           </form>
           <div class="list" id="employmentList" aria-live="polite"></div>
+          <div class="log-panel">
+            <p class="eyebrow">Log</p>
+            <ul id="employmentLog" class="log-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -278,6 +312,10 @@
             </div>
           </form>
           <div class="list" id="rulesSummary" aria-live="polite"></div>
+          <div class="log-panel">
+            <p class="eyebrow">Log</p>
+            <ul id="rulesLog" class="log-list"></ul>
+          </div>
         </div>
       </section>
     </div>
