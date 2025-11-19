@@ -39,6 +39,32 @@ const DEFAULT_FUNCTIONS = (services) => [
   { id: uuid(), name: 'Calltaker', serviceIds: services.filter((s) => s.name.toLowerCase().includes('c')).map((s) => s.id) },
 ];
 
+const VACATION_TYPES = {
+  vacation: { label: 'U', name: 'Urlaub', clearsAssignments: true, usesDailyHours: true, requiresReason: false, showService: false },
+  special: {
+    label: 'SU',
+    name: 'Sonderurlaub',
+    clearsAssignments: true,
+    usesDailyHours: true,
+    requiresReason: true,
+    showService: false,
+  },
+  special2: {
+    label: 'SU2',
+    name: 'Sonderurlaub 2',
+    clearsAssignments: false,
+    usesDailyHours: false,
+    requiresReason: true,
+    showService: true,
+  },
+};
+
+const SICK_TYPES = {
+  sick: { label: 'K', name: 'Krankenstand', clearsAssignments: true, usesDailyHours: true, showService: false },
+  care: { label: 'P', name: 'Pflegeurlaub', clearsAssignments: true, usesDailyHours: true, showService: false },
+  care2: { label: 'P2', name: 'Pflegeurlaub 2', clearsAssignments: false, usesDailyHours: false, showService: true },
+};
+
 const DEFAULT_EMPLOYEES = (employment, functions) => [
   {
     id: uuid(),
@@ -162,11 +188,13 @@ const employeePicker = document.getElementById('employeePicker');
 const servicePicker = document.getElementById('servicePicker');
 const functionPicker = document.getElementById('functionPicker');
 const employmentPicker = document.getElementById('employmentPicker');
+const rosterPanel = document.querySelector('[data-screen="roster"]');
 const rosterTable = document.getElementById('rosterTable');
 const monthLabel = document.getElementById('monthLabel');
 const prevMonthBtn = document.getElementById('prevMonth');
 const nextMonthBtn = document.getElementById('nextMonth');
 const generateBtn = document.getElementById('generatePlan');
+const printPlanBtn = document.getElementById('printPlan');
 const saveFileBtn = document.getElementById('saveFile');
 const loadFileBtn = document.getElementById('loadFile');
 const loadFileInput = document.getElementById('loadFileInput');
@@ -183,18 +211,19 @@ const vacationStartInput = document.getElementById('vacationStart');
 const vacationEndInput = document.getElementById('vacationEnd');
 const addVacationBtn = document.getElementById('addVacation');
 const vacationList = document.getElementById('vacationList');
+const vacationTypeSelect = document.getElementById('vacationType');
+const vacationReasonInput = document.getElementById('vacationReason');
+const vacationReasonWrapper = document.getElementById('vacationReasonWrapper');
 const sickPanel = document.getElementById('sickPanel');
 const sickStartInput = document.getElementById('sickStart');
 const sickEndInput = document.getElementById('sickEnd');
 const addSickBtn = document.getElementById('addSick');
 const sickList = document.getElementById('sickList');
+const sickTypeSelect = document.getElementById('sickType');
+const rosterModeButtons = document.querySelectorAll('[data-roster-mode]');
+const serviceLegend = document.getElementById('serviceLegend');
 const logElements = {
   roster: document.getElementById('rosterLog'),
-  employees: document.getElementById('employeesLog'),
-  services: document.getElementById('servicesLog'),
-  functions: document.getElementById('functionsLog'),
-  employment: document.getElementById('employmentLog'),
-  rules: document.getElementById('rulesLog'),
 };
 
 let state = loadState();
@@ -204,6 +233,8 @@ const editing = { employee: null, service: null, function: null, employment: nul
 let weekdaySelections = ensureWeekdaySelections(state.rules.weekdayServices);
 let selectedRows = new Set();
 let draggingRowId = null;
+let rosterMode = 'edit';
+let modeBeforePrint = null;
 
 function loadState() {
   const employment = loadArray(STORAGE_KEYS.employmentTypes, DEFAULT_EMPLOYMENT);
@@ -296,6 +327,8 @@ function normalizeVacationEntries(entries = []) {
         id: entry.id || uuid(),
         start: formatISODate(ordered.start),
         end: formatISODate(ordered.end),
+        type: VACATION_TYPES[entry?.type] ? entry.type : 'vacation',
+        reason: typeof entry?.reason === 'string' ? entry.reason : '',
       };
     })
     .filter(Boolean)
@@ -315,6 +348,7 @@ function normalizeSickEntries(entries = []) {
         start: formatISODate(ordered.start),
         end: formatISODate(ordered.end),
         confirmed: !!entry.confirmed,
+        kind: SICK_TYPES[entry?.kind] ? entry.kind : 'sick',
       };
     })
     .filter(Boolean)
@@ -505,9 +539,9 @@ function formatLogTimestamp(ts) {
   return date.toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-function appendLog(section, message) {
+function appendLog(section, message, entityId) {
   if (!state.logs[section]) state.logs[section] = [];
-  state.logs[section].unshift({ id: uuid(), message, timestamp: Date.now() });
+  state.logs[section].unshift({ id: uuid(), message, timestamp: Date.now(), entityId: entityId || null });
   state.logs[section] = state.logs[section].slice(0, 200);
   renderLogs(section);
 }
@@ -526,6 +560,12 @@ function renderLogs(section) {
       .map((entry) => `<li><strong>${formatLogTimestamp(entry.timestamp)}</strong><span>${entry.message}</span></li>`)
       .join('');
   });
+}
+
+function logsFor(section, entityId) {
+  const entries = state.logs?.[section] || [];
+  if (!entityId) return entries;
+  return entries.filter((entry) => entry.entityId === entityId);
 }
 
 function getMonthKey(date) {
@@ -590,6 +630,15 @@ function formatHours(value) {
   return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
 }
 
+const HTML_ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+HTML_ESCAPE['"'] = '&quot;';
+HTML_ESCAPE["'"] = '&#39;';
+
+function escapeHtml(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).replace(/[&<>"']/g, (char) => HTML_ESCAPE[char] || char);
+}
+
 function vacationBreakdown(startStr, endStr) {
   const start = parseISODate(startStr);
   const end = parseISODate(endStr);
@@ -618,9 +667,11 @@ function vacationUsageByYear(emp) {
 }
 
 function remainingVacationDays(emp, year) {
-  const total = Number(emp.vacationDays) || 0;
-  const usage = vacationUsageByYear(emp);
-  return total - (usage[year] || 0);
+  const { stats } = vacationStats(emp);
+  const entry = stats.find((s) => s.year === year);
+  if (!entry) return Number(emp.vacationDays) || 0;
+  if (typeof entry.remainingWithCarry === 'number') return entry.remainingWithCarry;
+  return entry.remaining;
 }
 
 function vacationStats(emp) {
@@ -656,15 +707,11 @@ function vacationStats(emp) {
 
 function vacationBalanceText(emp) {
   const { allowance, stats } = vacationStats(emp);
-  const nextYear = currentMonth.getFullYear() + 1;
   const base = `Anspruch: ${allowance} Tage`;
   const rest = stats.map((entry) => {
-    if (entry.year === nextYear) {
-      const carryText = entry.carry ? `, inkl. ${entry.carry} Tage Übertrag` : '';
-      const remaining = entry.remainingWithCarry ?? entry.remaining;
-      return `${entry.year}: ${remaining} Tage frei (${entry.used} verplant${carryText})`;
-    }
-    return `${entry.year}: ${entry.remaining} Tage frei (${entry.used} verplant)`;
+    const remaining = entry.remainingWithCarry ?? entry.remaining;
+    const carryText = entry.carry ? `, inkl. ${entry.carry} Tage Übertrag` : '';
+    return `${entry.year}: ${remaining} Tage frei (${entry.used} verplant${carryText})`;
   });
   return [base].concat(rest).join(' · ');
 }
@@ -678,9 +725,10 @@ function employeeVacationLine(emp) {
     { year: currentYear, remaining: allowance, used: 0 };
   const next =
     stats.find((entry) => entry.year === nextYear) ||
-    { year: nextYear, remaining: allowance, used: 0, remainingWithCarry: allowance + current.remaining };
-  const nextRemaining = next.remainingWithCarry ?? next.remaining + Math.max(current.remaining, 0);
-  return `Urlaub: ${allowance} Tage · ${currentYear}: ${current.remaining} offen · ${nextYear}: ${nextRemaining} offen`;
+    { year: nextYear, remaining: allowance, used: 0, remainingWithCarry: allowance + Math.max(current.remaining, 0) };
+  const nextRemaining = next.remainingWithCarry ?? next.remaining;
+  const carryText = next.carry ? `, inkl. ${next.carry} Übertrag` : '';
+  return `Anspruch: ${allowance} Tage · ${currentYear}: ${current.remaining} Tage frei (${current.used} verplant) · ${nextYear}: ${nextRemaining} Tage frei (${next.used} verplant${carryText})`;
 }
 
 function calculateVacationDays(startStr, endStr) {
@@ -721,6 +769,16 @@ function findSickOnDate(emp, date) {
   });
 }
 
+function usesDailyHoursForVacation(entry) {
+  const meta = VACATION_TYPES[entry?.type];
+  return meta ? meta.usesDailyHours : true;
+}
+
+function usesDailyHoursForSick(entry) {
+  const meta = SICK_TYPES[entry?.kind];
+  return meta ? meta.usesDailyHours : true;
+}
+
 function hasBirthdayOnDate(emp, date) {
   if (!emp.birthday) return false;
   const birthday = parseISODate(emp.birthday);
@@ -728,7 +786,9 @@ function hasBirthdayOnDate(emp, date) {
   return birthday.getDate() === date.getDate() && birthday.getMonth() === date.getMonth();
 }
 
-function clearAssignmentsForRange(empId, startStr, endStr) {
+function clearAssignmentsForRange(empId, startStr, endStr, options = {}) {
+  const keepAssignments = !!options.keepAssignments;
+  const keepLocks = !!options.keepLocks;
   const start = parseISODate(startStr);
   const end = parseISODate(endStr);
   if (!start || !end) return;
@@ -740,13 +800,13 @@ function clearAssignmentsForRange(empId, startStr, endStr) {
     const day = cursor.getDate();
     const monthAssignments = state.assignments[monthKey];
     const monthLocks = state.locks[monthKey];
-    if (monthAssignments && monthAssignments[empId]) {
+    if (monthAssignments && monthAssignments[empId] && !keepAssignments) {
       delete monthAssignments[empId][day];
       if (!Object.keys(monthAssignments[empId]).length) {
         delete monthAssignments[empId];
       }
     }
-    if (monthLocks && monthLocks[empId]) {
+    if (monthLocks && monthLocks[empId] && !keepLocks) {
       delete monthLocks[empId][day];
       if (!Object.keys(monthLocks[empId]).length) {
         delete monthLocks[empId];
@@ -839,12 +899,101 @@ function updateDropdowns() {
 
 function renderEmployees() {
   updateDropdowns();
-  employeeList.innerHTML = state.employees.map((emp) => {
-    const percent = state.employment.find((e) => e.id === emp.employmentPercent);
-    const hours = state.employment.find((e) => e.id === emp.employmentHours);
-    const func = state.functions.find((f) => f.id === emp.functionId);
-    return `<div class="item"><div><strong>${formatName(emp)}</strong><br><small>PNR ${emp.personnelNumber} · ${emp.birthday}</small></div><div><small>${percent?.percent ?? '?'}% / ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine'} · Nacht: ${emp.nightAllowed ? 'ja' : 'nein'} · RKT: ${emp.rkt ? 'ja' : 'nein'} · ${employeeVacationLine(emp)}</small></div></div>`;
-  }).join('');
+  if (!employeeList) return;
+  if (!state.employees.length) {
+    employeeList.innerHTML = '<p class="muted">Noch keine Mitarbeiter angelegt.</p>';
+    return;
+  }
+  employeeList.innerHTML = state.employees
+    .map((emp) => {
+      const percent = state.employment.find((e) => e.id === emp.employmentPercent);
+      const hours = state.employment.find((e) => e.id === emp.employmentHours);
+      const func = state.functions.find((f) => f.id === emp.functionId);
+      const vacations = buildVacationOverview(emp);
+      const sickLeaves = buildSickOverview(emp);
+      const logs = buildLogOverview('employees', emp.id);
+      return `
+        <div class="item employee-card">
+          <div class="employee-card__header">
+            <strong>${formatName(emp)}</strong>
+            <small>PNR ${emp.personnelNumber} · ${emp.birthday}</small>
+            <small>${percent?.percent ?? '?'}% · ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine Funktion'} · Nacht: ${
+              emp.nightAllowed ? 'ja' : 'nein'
+            } · RKT: ${emp.rkt ? 'ja' : 'nein'}</small>
+          </div>
+          <div class="employee-card__meta">${employeeVacationLine(emp)}</div>
+          <div class="card-details">
+            ${renderDetailsSection('Urlaube', vacations)}
+            ${renderDetailsSection('Krankenstände', sickLeaves)}
+            ${renderDetailsSection('Logs', logs)}
+          </div>
+        </div>`;
+    })
+    .join('');
+}
+
+function renderDetailsSection(label, data) {
+  const count = typeof data.count === 'number' ? data.count : 0;
+  return `<details><summary>${label} (${count})</summary>${data.body}</details>`;
+}
+
+function buildVacationOverview(emp) {
+  if (!emp.vacations?.length) {
+    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
+  }
+  const items = emp.vacations
+    .slice()
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .map((entry) => {
+      const days = calculateVacationDays(entry.start, entry.end);
+      const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
+      const reason = entry.reason ? ` · Grund: ${escapeHtml(entry.reason)}` : '';
+      return `<li><strong>${formatVacationRange(entry)}</strong><small>${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}${reason}</small></li>`;
+    })
+    .join('');
+  return { count: emp.vacations.length, body: `<ul>${items}</ul>` };
+}
+
+function buildSickOverview(emp) {
+  if (!emp.sickLeaves?.length) {
+    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
+  }
+  const items = emp.sickLeaves
+    .slice()
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .map((entry) => {
+      const days = calculateVacationDays(entry.start, entry.end);
+      const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
+      const statusMarkup = renderSickStatus(entry);
+      return `<li><strong>${formatVacationRange(entry)}</strong><small>${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</small>${statusMarkup}</li>`;
+    })
+    .join('');
+  return { count: emp.sickLeaves.length, body: `<ul>${items}</ul>` };
+}
+
+function renderSickStatus(entry) {
+  const confirmed = !!entry?.confirmed;
+  const icon = confirmed
+    ? '<span class="status-icon positive" aria-hidden="true">✔</span>'
+    : '<span class="status-icon negative" aria-hidden="true">✗</span>';
+  const text = confirmed ? 'Meldung erhalten' : 'keine Meldung';
+  return `<span class="status-label" title="${escapeHtml(text)}">${icon}<span>${text}</span></span>`;
+}
+
+function buildLogOverview(section, entityId) {
+  const entries = logsFor(section, entityId);
+  if (!entries.length) {
+    return { count: 0, body: '<p class="log-inline">Noch keine Einträge</p>' };
+  }
+  const items = entries
+    .map((entry) => `<li><small>${formatLogTimestamp(entry.timestamp)}</small><span>${entry.message}</span></li>`)
+    .join('');
+  return { count: entries.length, body: `<ul>${items}</ul>` };
+}
+
+function renderLogDetails(section, entityId) {
+  const data = buildLogOverview(section, entityId);
+  return renderDetailsSection('Logs', data);
 }
 
 function renderVacationPanel(emp) {
@@ -853,10 +1002,14 @@ function renderVacationPanel(emp) {
     vacationPanel.hidden = true;
     vacationList.innerHTML = '';
     vacationBalance.textContent = '';
+    if (vacationTypeSelect) vacationTypeSelect.value = 'vacation';
+    if (vacationReasonInput) vacationReasonInput.value = '';
+    updateVacationReasonVisibility();
     return;
   }
   vacationPanel.hidden = false;
   vacationBalance.textContent = vacationBalanceText(emp);
+  updateVacationReasonVisibility();
   if (!emp.vacations?.length) {
     vacationList.innerHTML = '<li class="muted">Noch kein Urlaub eingetragen</li>';
     return;
@@ -865,12 +1018,15 @@ function renderVacationPanel(emp) {
   vacationList.innerHTML = entries
     .map((entry) => {
       const days = calculateVacationDays(entry.start, entry.end);
+      const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
+      const reason = entry.reason ? `<span class="muted">Grund: ${escapeHtml(entry.reason)}</span>` : '';
       return `
         <li>
           <div class="entry-line">
             <div>
               <strong>${formatVacationRange(entry)}</strong>
-              <span class="muted">${days} Tag${days === 1 ? '' : 'e'}</span>
+              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</span>
+              ${reason}
             </div>
             <div class="entry-actions">
               <button type="button" class="ghost" data-remove-vacation="${entry.id}">Entfernen</button>
@@ -881,11 +1037,23 @@ function renderVacationPanel(emp) {
     .join('');
 }
 
+function updateVacationReasonVisibility() {
+  if (!vacationReasonWrapper || !vacationTypeSelect) return;
+  const meta = VACATION_TYPES[vacationTypeSelect.value] || VACATION_TYPES.vacation;
+  if (meta.requiresReason) {
+    vacationReasonWrapper.classList.remove('hidden');
+  } else {
+    vacationReasonWrapper.classList.add('hidden');
+    if (vacationReasonInput) vacationReasonInput.value = '';
+  }
+}
+
 function renderSickPanel(emp) {
   if (!sickPanel) return;
   if (!emp) {
     sickPanel.hidden = true;
     sickList.innerHTML = '';
+    if (sickTypeSelect) sickTypeSelect.value = 'sick';
     return;
   }
   sickPanel.hidden = false;
@@ -897,13 +1065,15 @@ function renderSickPanel(emp) {
   sickList.innerHTML = entries
     .map((entry) => {
       const days = calculateVacationDays(entry.start, entry.end);
-      const status = entry.confirmed ? 'Meldung erhalten' : 'keine Meldung';
+      const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
+      const statusMarkup = renderSickStatus(entry);
       return `
         <li>
           <div class="entry-line">
             <div>
               <strong>${formatVacationRange(entry)}</strong>
-              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${status}</span>
+              <span class="muted">${days} Tag${days === 1 ? '' : 'e'} · ${meta.name}</span>
+              ${statusMarkup}
             </div>
             <div class="entry-actions">
               <label class="checkbox inline">
@@ -931,6 +1101,13 @@ function handleAddVacation() {
   const start = vacationStartInput.value;
   const end = vacationEndInput.value || vacationStartInput.value;
   const ordered = start <= end ? { start, end } : { start: end, end: start };
+  const type = VACATION_TYPES[vacationTypeSelect?.value] ? vacationTypeSelect.value : 'vacation';
+  const meta = VACATION_TYPES[type];
+  const reasonValue = vacationReasonInput?.value?.trim() || '';
+  if (meta.requiresReason && !reasonValue) {
+    alert('Bitte einen Grund für den Sonderurlaub angeben.');
+    return;
+  }
   const breakdown = vacationBreakdown(ordered.start, ordered.end);
   const conflicts = Object.entries(breakdown).filter(([year, days]) => {
     const remaining = remainingVacationDays(emp, Number(year));
@@ -942,15 +1119,20 @@ function handleAddVacation() {
       return;
     }
   }
-  const entry = { id: uuid(), start: ordered.start, end: ordered.end };
+  const entry = { id: uuid(), start: ordered.start, end: ordered.end, type, reason: reasonValue };
   emp.vacations.push(entry);
-  clearAssignmentsForRange(emp.id, entry.start, entry.end);
-  appendLog('employees', `Urlaub ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`);
+  if (meta.clearsAssignments) {
+    clearAssignmentsForRange(emp.id, entry.start, entry.end);
+  }
+  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`, emp.id);
   saveState();
   renderVacationPanel(emp);
+  renderEmployees();
   renderRoster();
   vacationStartInput.value = '';
   vacationEndInput.value = '';
+  if (vacationReasonInput) vacationReasonInput.value = '';
+  updateVacationReasonVisibility();
 }
 
 function handleVacationListClick(event) {
@@ -963,9 +1145,11 @@ function handleVacationListClick(event) {
   if (!entry) return;
   if (!confirm('Diesen Urlaub wirklich entfernen?')) return;
   emp.vacations = emp.vacations.filter((entry) => entry.id !== button.dataset.removeVacation);
-  appendLog('employees', `Urlaub ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`);
+  const meta = VACATION_TYPES[entry.type] || VACATION_TYPES.vacation;
+  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`, emp.id);
   saveState();
   renderVacationPanel(emp);
+  renderEmployees();
   renderRoster();
 }
 
@@ -983,18 +1167,21 @@ function handleAddSick() {
   const start = sickStartInput.value;
   const end = sickEndInput.value || sickStartInput.value;
   const ordered = start <= end ? { start, end } : { start: end, end: start };
-  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: false };
+  const kind = SICK_TYPES[sickTypeSelect?.value] ? sickTypeSelect.value : 'sick';
+  const meta = SICK_TYPES[kind];
+  const entry = { id: uuid(), start: ordered.start, end: ordered.end, confirmed: false, kind };
   emp.sickLeaves.push(entry);
-  clearAssignmentsForRange(emp.id, entry.start, entry.end);
-  appendLog(
-    'employees',
-    `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`
-  );
+  if (meta.clearsAssignments) {
+    clearAssignmentsForRange(emp.id, entry.start, entry.end);
+  }
+  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} gespeichert.`, emp.id);
   saveState();
   renderSickPanel(emp);
+  renderEmployees();
   renderRoster();
   sickStartInput.value = '';
   sickEndInput.value = '';
+  if (sickTypeSelect) sickTypeSelect.value = 'sick';
 }
 
 function handleSickListClick(event) {
@@ -1007,9 +1194,11 @@ function handleSickListClick(event) {
   if (!entry) return;
   if (!confirm('Diesen Krankenstand wirklich entfernen?')) return;
   emp.sickLeaves = emp.sickLeaves.filter((s) => s.id !== entry.id);
-  appendLog('employees', `Krankenstand ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`);
+  const meta = SICK_TYPES[entry.kind] || SICK_TYPES.sick;
+  appendLog('employees', `${meta.name} ${formatVacationRange(entry)} für ${formatName(emp)} entfernt.`, emp.id);
   saveState();
   renderSickPanel(emp);
+  renderEmployees();
   renderRoster();
 }
 
@@ -1024,26 +1213,66 @@ function handleSickListChange(event) {
   entry.confirmed = checkbox.checked;
   appendLog(
     'employees',
-    `Krankmeldung für ${formatName(emp)} ${checkbox.checked ? 'bestätigt' : 'zurückgenommen'} (${formatVacationRange(entry)}).`
+    `Krankmeldung für ${formatName(emp)} ${checkbox.checked ? 'bestätigt' : 'zurückgenommen'} (${formatVacationRange(entry)}).`,
+    emp.id
   );
   saveState();
   renderSickPanel(emp);
+  renderEmployees();
   renderRoster();
 }
 
 function renderServices() {
-  serviceList.innerHTML = state.services.map((s) => `<div class="item"><strong>${s.name}</strong><small>${s.start} – ${s.end} (${serviceDuration(s)}h)</small></div>`).join('');
+  if (!serviceList) return;
+  if (!state.services.length) {
+    serviceList.innerHTML = '<p class="muted">Noch keine Dienste angelegt.</p>';
+    renderLegend();
+    return;
+  }
+  serviceList.innerHTML = state.services
+    .map((s) => {
+      const duration = serviceDuration(s);
+      return `
+        <div class="item">
+          <div><strong>${s.name}</strong><br><small>${s.start} – ${s.end} (${formatHours(duration)}h)</small></div>
+          ${renderLogDetails('services', s.id)}
+        </div>`;
+    })
+    .join('');
+  renderLegend();
 }
 
 function renderFunctions() {
-  functionList.innerHTML = state.functions.map((f) => {
-    const names = f.serviceIds.map((id) => state.services.find((s) => s.id === id)?.name || '');
-    return `<div class="item"><div><strong>${f.name}</strong></div><small>Dienste: ${names.filter(Boolean).join(', ') || 'Keine'}</small></div>`;
-  }).join('');
+  if (!functionList) return;
+  if (!state.functions.length) {
+    functionList.innerHTML = '<p class="muted">Noch keine Funktionen angelegt.</p>';
+    return;
+  }
+  functionList.innerHTML = state.functions
+    .map((f) => {
+      const names = f.serviceIds.map((id) => state.services.find((s) => s.id === id)?.name || '').filter(Boolean).join(', ');
+      return `
+        <div class="item">
+          <div><strong>${f.name}</strong><br><small>Dienste: ${names || 'Keine'}</small></div>
+          ${renderLogDetails('functions', f.id)}
+        </div>`;
+    })
+    .join('');
 }
 
 function renderEmployment() {
-  employmentList.innerHTML = state.employment.map((e) => `<div class="item"><strong>${e.percent}%</strong><small>${e.hours} Stunden/Monat</small></div>`).join('');
+  if (!employmentList) return;
+  if (!state.employment.length) {
+    employmentList.innerHTML = '<p class="muted">Noch keine Einträge.</p>';
+    return;
+  }
+  employmentList.innerHTML = state.employment
+    .map((e) => `
+      <div class="item">
+        <div><strong>${e.percent}%</strong><br><small>${e.hours} Stunden/Monat</small></div>
+        ${renderLogDetails('employment', e.id)}
+      </div>`)
+    .join('');
 }
 
 function renderWeekdaySelects() {
@@ -1125,7 +1354,35 @@ function renderRules() {
   form.maxNights.value = r.maxNights ?? '';
   weekdaySelections = ensureWeekdaySelections(r.weekdayServices);
   renderWeekdayControls();
-  rulesSummary.innerHTML = `<div class="item"><div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${r.maxHoursWeek ?? '–'} Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'}</small></div>`;
+  if (rulesSummary) {
+    const summary = `<div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${
+      r.maxHoursWeek ?? '–'
+    } Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${
+      r.maxNights ?? '–'
+    }</small>`;
+    rulesSummary.innerHTML = `<div class="item">${summary}${renderLogDetails('rules', 'rules')}</div>`;
+  }
+}
+
+function renderLegend() {
+  if (!serviceLegend) return;
+  if (!state.services.length) {
+    serviceLegend.innerHTML = '<p class="muted">Noch keine Dienste definiert.</p>';
+    return;
+  }
+  const chips = state.services
+    .map((service) => `<span>${escapeHtml(service.name)} ${service.start}–${service.end}</span>`)
+    .join('');
+  serviceLegend.innerHTML = `<strong>Dienstlegende:</strong>${chips}`;
+}
+
+function renderServiceChip(service, options = {}) {
+  if (!service) return '';
+  const classes = ['service-chip'];
+  if (options.strike) classes.push('strike');
+  const windowLabel = service.start && service.end ? `${service.start}–${service.end}` : '';
+  const tooltip = [service.name, windowLabel].filter(Boolean).join(' · ');
+  return `<span class="${classes.join(' ')}" title="${escapeHtml(tooltip)}">${service.name}</span>`;
 }
 
 function fillEmployeeForm(emp) {
@@ -1201,7 +1458,7 @@ function handleEmployeeForm(e) {
     editing.employee = entry.id;
     employeePicker.value = entry.id;
   }
-  appendLog('employees', `Mitarbeiter ${formatName(entry)} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
+  appendLog('employees', `Mitarbeiter ${formatName(entry)} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderEmployees();
@@ -1233,7 +1490,7 @@ function handleServiceForm(e) {
     editing.service = entry.id;
     servicePicker.value = entry.id;
   }
-  appendLog('services', `Dienst ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
+  appendLog('services', `Dienst ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderServices();
@@ -1259,7 +1516,7 @@ function handleFunctionForm(e) {
     editing.function = entry.id;
     functionPicker.value = entry.id;
   }
-  appendLog('functions', `Funktion ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
+  appendLog('functions', `Funktion ${entry.name} ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderFunctions();
@@ -1282,7 +1539,7 @@ function handleEmploymentForm(e) {
     editing.employment = entry.id;
     employmentPicker.value = entry.id;
   }
-  appendLog('employment', `Anstellungsverhältnis ${entry.percent}% · ${entry.hours} Std ${isUpdate ? 'aktualisiert' : 'angelegt'}.`);
+  appendLog('employment', `Anstellungsverhältnis ${entry.percent}% · ${entry.hours} Std ${isUpdate ? 'aktualisiert' : 'angelegt'}.`, entry.id);
   saveState();
   updateDropdowns();
   renderEmployment();
@@ -1302,7 +1559,7 @@ function handleRulesForm(e) {
     maxNights: toNumber(data.get('maxNights')),
     weekdayServices: ensureWeekdaySelections(weekdaySelections),
   };
-  appendLog('rules', 'Regelwerk aktualisiert.');
+  appendLog('rules', 'Regelwerk aktualisiert.', 'rules');
   saveState();
   renderRules();
   renderRoster();
@@ -1327,12 +1584,19 @@ function showScreen(target) {
   }
 }
 
+function setRosterMode(mode) {
+  const next = mode === 'view' ? 'view' : 'edit';
+  if (next === rosterMode) return;
+  rosterMode = next;
+  renderRoster();
+}
+
 function buildRosterHeader(date) {
   const days = daysInMonth(date);
   const headerRows = [document.createElement('tr'), document.createElement('tr')];
   const stickyCells = [
     '<th class="names col-info" rowspan="2"><div class="info-header"><span>Name</span><span>Personalnummer</span></div></th>',
-    '<th class="names col-hours" rowspan="2"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span></div></th>',
+    '<th class="names col-hours" rowspan="2"><div class="hours-header"><span>Stundensoll</span><span>Noch zu verplanen</span><span>Nachtdienste</span><span>Feiertagsdienste</span></div></th>',
   ];
   stickyCells.forEach((html) => headerRows[0].insertAdjacentHTML('beforeend', html));
   for (let day = 1; day <= days; day++) {
@@ -1397,6 +1661,11 @@ function renderRoster() {
   rosterTable.appendChild(unassignedRow);
 
   monthLabel.textContent = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+  if (rosterPanel) rosterPanel.dataset.mode = rosterMode;
+  rosterModeButtons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.rosterMode === rosterMode);
+  });
+  renderLegend();
   if (editing.employee) {
     const currentEmp = state.employees.find((e) => e.id === editing.employee);
     if (currentEmp) {
@@ -1457,10 +1726,15 @@ function buildEmployeeRow(emp, monthKey, days) {
 
   const hoursCell = document.createElement('td');
   hoursCell.className = 'names col-hours';
+  const stats = specialShiftStats(monthKey, emp.id);
   hoursCell.innerHTML = `
     <div class="hours-cell">
       <span class="hours-target">${employment?.hours ?? '–'} Std</span>
       <span class="${remainingClass}">${formatHours(remainingHours)} Std</span>
+      <div class="hours-metrics">
+        <span>Nachtdienste: <strong>${stats.nights}</strong></span>
+        <span>Feiertagsdienste: <strong>${stats.holidayShifts}</strong></span>
+      </div>
     </div>
   `;
   tr.appendChild(hoursCell);
@@ -1476,9 +1750,19 @@ function buildEmployeeRow(emp, monthKey, days) {
     const assign = monthAssignments[emp.id]?.[day] ?? '';
     const locked = !!monthLocks[emp.id]?.[day];
     const serviceOptions = allowedServicesForEmployee(emp, assign);
-    const options = ['<option value="">–</option>']
-      .concat(serviceOptions.map((s) => `<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`))
-      .join('');
+    const selectPieces = ['<option value="">–</option>'];
+    let includesAssigned = false;
+    serviceOptions.forEach((s) => {
+      if (assign === s.id) includesAssigned = true;
+      selectPieces.push(`<option value="${s.id}" ${assign === s.id ? 'selected' : ''}>${s.name}</option>`);
+    });
+    if (assign && !includesAssigned) {
+      const fallbackService = state.services.find((s) => s.id === assign);
+      if (fallbackService) {
+        selectPieces.push(`<option value="${assign}" selected>${fallbackService.name}</option>`);
+      }
+    }
+    const options = selectPieces.join('');
     const td = document.createElement('td');
     const vacationEntry = findVacationOnDate(emp, d);
     const sickEntry = findSickOnDate(emp, d);
@@ -1486,21 +1770,42 @@ function buildEmployeeRow(emp, monthKey, days) {
     if (vacationEntry) cls.push('vacation');
     if (sickEntry) cls.push('sick');
     td.className = cls.join(' ');
-    const selectDisabled = locked || !serviceOptions.length || vacationEntry || sickEntry;
+    const selectDisabled = locked || !serviceOptions.length;
     const parts = ['<div class="cell">'];
     if (isBirthday) {
       parts.push('<span class="birthday-flag" title="Geburtstag">🎂</span>');
     }
-    if (vacationEntry || sickEntry) {
-      if (vacationEntry) {
-        parts.push('<span class="absence-pill vacation" title="Urlaub">U</span>');
-      } else if (sickEntry) {
-        const status = sickEntry.confirmed ? 'Krankenstand – Meldung erhalten' : 'Krankenstand';
-        parts.push(`<span class="absence-pill sick" title="${status}">K</span>`);
+    const showVacation = !!vacationEntry;
+    const showSick = !!sickEntry;
+    const absenceMeta = showVacation ? VACATION_TYPES[vacationEntry.type] || VACATION_TYPES.vacation : null;
+    const sickMeta = showSick ? SICK_TYPES[sickEntry.kind] || SICK_TYPES.sick : null;
+    const showAbsence = showVacation || showSick;
+    const service = serviceOptions.find((s) => s.id === assign) || state.services.find((s) => s.id === assign);
+    const showServiceWithAbsence =
+      (showVacation && absenceMeta?.showService && service) || (showSick && sickMeta?.showService && service);
+    if (showServiceWithAbsence) {
+      parts.push(renderServiceChip(service, { strike: true }));
+    }
+    if (showAbsence) {
+      const label = showVacation ? absenceMeta.label : sickMeta.label;
+      const titleParts = [showVacation ? absenceMeta.name : sickMeta.name];
+      if (showVacation && vacationEntry.reason) titleParts.push(`Grund: ${escapeHtml(vacationEntry.reason)}`);
+      if (showSick && !sickEntry.confirmed) titleParts.push('Keine Meldung');
+      const title = titleParts.join(' · ');
+      parts.push(
+        `<span class="absence-pill ${showVacation ? 'vacation' : 'sick'}" title="${title}">${label}</span>`
+      );
+    } else if (rosterMode === 'view') {
+      if (service) {
+        parts.push(renderServiceChip(service));
+      } else {
+        parts.push('<span class="muted">–</span>');
       }
     } else {
       parts.push(`<select data-emp="${emp.id}" data-day="${day}" ${selectDisabled ? 'disabled' : ''}>${options}</select>`);
-      parts.push(`<label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>`);
+      parts.push(
+        `<label class="lock"><input type="checkbox" data-lock="${emp.id}" data-day="${day}" ${locked ? 'checked' : ''}> <span>Sperren</span></label>`
+      );
     }
     parts.push('</div>');
     td.innerHTML = parts.join('');
@@ -1512,8 +1817,16 @@ function buildEmployeeRow(emp, monthKey, days) {
 function handleCreateGroup() {
   if (!selectedRows.size) return;
   const name = prompt('Name der neuen Gruppe', 'Neue Gruppe');
-  if (!name) return;
-  const group = { id: uuid(), name: name.trim() || 'Neue Gruppe' };
+  if (name === null) {
+    renderRoster();
+    return;
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    renderRoster();
+    return;
+  }
+  const group = { id: uuid(), name: trimmed || 'Neue Gruppe' };
   state.groups.push(group);
   selectedRows.forEach((id) => {
     const emp = state.employees.find((e) => e.id === id);
@@ -1653,6 +1966,13 @@ function ensureMonthMaps(monthKey) {
 }
 
 function handleRosterChange(e) {
+  if (
+    rosterMode === 'view' &&
+    (e.target.matches('select[data-emp]') || e.target.matches('input[type="checkbox"][data-lock]'))
+  ) {
+    e.preventDefault();
+    return;
+  }
   if (e.target.matches('input[type="checkbox"][data-row-select]')) {
     const id = e.target.dataset.rowSelect;
     if (!id) return;
@@ -1699,8 +2019,26 @@ function countNights(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
   return Object.values(assignments).filter((serviceId) => {
     const service = state.services.find((s) => s.id === serviceId);
-    return service && /nacht/i.test(service.name);
+    return isNightService(service);
   }).length;
+}
+
+function isNightService(service) {
+  return !!service && /nacht/i.test(service.name);
+}
+
+function specialShiftStats(monthKey, empId) {
+  const assignments = state.assignments[monthKey]?.[empId] || {};
+  let nights = 0;
+  let holidayShifts = 0;
+  Object.entries(assignments).forEach(([day, serviceId]) => {
+    const service = state.services.find((s) => s.id === serviceId);
+    if (!service) return;
+    if (isNightService(service)) nights++;
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
+    if (isHoliday(date) || date.getDay() === 0) holidayShifts++;
+  });
+  return { nights, holidayShifts };
 }
 
 function hoursForEmployee(monthKey, empId) {
@@ -1721,7 +2059,11 @@ function hoursForEmployee(monthKey, empId) {
       total += holidayFactor;
     }
     if (dailyHours) {
-      if (findVacationOnDate(emp, date) || findSickOnDate(emp, date)) {
+      const vacationEntry = findVacationOnDate(emp, date);
+      const sickEntry = findSickOnDate(emp, date);
+      if (vacationEntry && usesDailyHoursForVacation(vacationEntry)) {
+        total += dailyHours;
+      } else if (sickEntry && usesDailyHoursForSick(sickEntry)) {
         total += dailyHours;
       }
     }
@@ -1751,7 +2093,13 @@ function generateRoster() {
     if (!state.assignments[monthKey][emp.id]) state.assignments[monthKey][emp.id] = {};
     for (let day = 1; day <= days; day++) {
       const locked = state.locks[monthKey]?.[emp.id]?.[day];
-      if (!locked) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const vacationEntry = findVacationOnDate(emp, date);
+      const sickEntry = findSickOnDate(emp, date);
+      const keepAssignment =
+        (vacationEntry && VACATION_TYPES[vacationEntry.type]?.clearsAssignments === false) ||
+        (sickEntry && SICK_TYPES[sickEntry.kind]?.clearsAssignments === false);
+      if (!locked && !keepAssignment) {
         delete state.assignments[monthKey][emp.id][day];
       }
     }
@@ -1761,17 +2109,17 @@ function generateRoster() {
     const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const servicesForDay = getRequiredServicesForDate(currentDate);
     for (const service of servicesForDay) {
-          state.employees
-            .filter((emp) => {
-              const func = state.functions.find((f) => f.id === emp.functionId);
-              const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
-              if (!allowed) return false;
-              if (findVacationOnDate(emp, currentDate)) return false;
-              if (findSickOnDate(emp, currentDate)) return false;
-              const isNight = /nacht/i.test(service.name);
-              if (isNight && !emp.nightAllowed) return false;
-              return true;
-            })
+      state.employees
+        .filter((emp) => {
+          const func = state.functions.find((f) => f.id === emp.functionId);
+          const allowed = Array.isArray(func?.serviceIds) && func.serviceIds.includes(service.id);
+          if (!allowed) return false;
+          if (findVacationOnDate(emp, currentDate)) return false;
+          if (findSickOnDate(emp, currentDate)) return false;
+          const isNight = isNightService(service);
+          if (isNight && !emp.nightAllowed) return false;
+          return true;
+        })
         .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
         .some((emp) => {
           ensureMonthMaps(monthKey);
@@ -1785,7 +2133,7 @@ function generateRoster() {
           if (rules.maxHoursMonth && nextHours > rules.maxHoursMonth) return false;
           const nextWeekends = countWeekends(monthKey, emp.id) + (isWeekend(currentDate) ? 1 : 0);
           if (rules.maxWeekendDays && nextWeekends > rules.maxWeekendDays) return false;
-          const nextNights = countNights(monthKey, emp.id) + (/nacht/i.test(service.name) ? 1 : 0);
+          const nextNights = countNights(monthKey, emp.id) + (isNightService(service) ? 1 : 0);
           if (rules.maxNights && nextNights > rules.maxNights) return false;
           state.assignments[monthKey][emp.id][day] = service.id;
           return true;
@@ -1921,17 +2269,37 @@ function wireEvents() {
     });
   });
   if (addVacationBtn) addVacationBtn.addEventListener('click', handleAddVacation);
+  if (vacationTypeSelect) vacationTypeSelect.addEventListener('change', updateVacationReasonVisibility);
   if (vacationList) vacationList.addEventListener('click', handleVacationListClick);
   if (addSickBtn) addSickBtn.addEventListener('click', handleAddSick);
   if (sickList) {
     sickList.addEventListener('click', handleSickListClick);
     sickList.addEventListener('change', handleSickListChange);
   }
+  if (rosterModeButtons.length) {
+    rosterModeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => setRosterMode(btn.dataset.rosterMode || 'edit'));
+    });
+  }
+  if (printPlanBtn) {
+    printPlanBtn.addEventListener('click', handlePrintPlan);
+  }
   if (createGroupBtn) createGroupBtn.addEventListener('click', handleCreateGroup);
   if (assignGroupBtn) assignGroupBtn.addEventListener('click', handleAssignGroup);
   if (removeGroupBtn) removeGroupBtn.addEventListener('click', handleRemoveGroup);
   if (groupSelect) groupSelect.addEventListener('change', updateRowToolStates);
   syncEmploymentHours();
+}
+
+function handlePrintPlan() {
+  if (typeof window === 'undefined') return;
+  if (rosterMode !== 'view') {
+    modeBeforePrint = rosterMode;
+    setRosterMode('view');
+  } else {
+    modeBeforePrint = null;
+  }
+  window.print();
 }
 
 function init() {
@@ -1945,7 +2313,18 @@ function init() {
   renderRules();
   renderRoster();
   renderLogs();
+  updateVacationReasonVisibility();
   wireEvents();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('afterprint', () => {
+    if (modeBeforePrint) {
+      const restore = modeBeforePrint;
+      modeBeforePrint = null;
+      setRosterMode(restore);
+    }
+  });
 }
 
 if (document.readyState === 'loading') {

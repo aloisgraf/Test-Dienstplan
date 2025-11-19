@@ -3,22 +3,18 @@
 Dieser Prototyp liefert eine konfigurierbare Admin- und Planungsoberfläche für Monatsdienstpläne. Alle Daten werden lokal im Browser gespeichert und lassen sich per Klick als JSON-Datei exportieren/importieren – komplett ohne Backend.
 
 ## Funktionsumfang
-- **Admin-Menüs** für Mitarbeiter, Dienste, Funktionen, Anstellungsverhältnisse und Regeln – jeder Bereich besitzt jetzt ein eigenes Protokoll, das jede Anlage, Änderung oder Löschung mit Zeitstempel dokumentiert.
-- **Übersichten & Logs**: Unter jedem Formular hebt ein separater Überblicksblock die bestehenden Datensätze hervor; darin können die Log-Einträge per Klick ein- oder ausgeklappt werden.
-- **Mitarbeiter**: Vor-/Nachname, Personalnummer, Geburtstag, Anstellung (%/Stunden), Funktion, Nachtdienst-/RKT-Flags sowie Durchrechnungsfaktor, tägliche Sollarbeitszeit und Urlaubsanspruch. Ein Auswahl-Dropdown lädt bestehende Datensätze und fordert beim Überschreiben eine Bestätigung.
-- **Urlaubs- & Krankenstandsverwaltung**: Beliebig viele Urlaube und Krankenstände pro Person. Die Resttage pro Kalenderjahr werden automatisch berechnet, bei Überschreitung erfolgt eine Warnung, im Raster erscheinen „U“-/„K“-Marker und gesperrte Zellen. Der Status „Krankmeldung erhalten“ lässt sich jetzt direkt in der Krankenstandsübersicht per Checkbox nachpflegen.
-- **Urlaubsübertrag**: Der offene Resturlaub des laufenden Jahres wird automatisch auf das Folgejahr addiert und sowohl in der Mitarbeiterliste als auch im Urlaubs-Panel kommuniziert (inkl. Hinweis auf den Übertrag).
-- **Dienste**: Name und Zeitfenster (von/bis) mit automatischer Dauerberechnung und Logeintrag bei Änderungen.
-- **Funktionen**: Bündeln Diensten und können Mitarbeitern zugeordnet werden; jede Speicherung landet im Protokoll.
-- **Anstellungsverhältnisse**: Prozent und Stunden pro Monat; die Prozent-Auswahl trägt die zugehörigen Stunden automatisch ins Formular und protokolliert jede Version.
-- **Regeln**: Ruhezeiten, Wochen-/Monatsstunden, Wochenenden, Nachtdienste plus Pflichtdienste für jeden Wochentag und Salzburger Feiertage – inklusive Chip-UI zum Hinzufügen/Entfernen und Logeintrag beim Speichern.
-- **Durchrechnungsfaktor & Sollarbeitszeit**: Feiertage zählen automatisch den hinterlegten Durchrechnungsfaktor, Urlaube und Krankenstände buchen die tägliche Sollarbeitszeit – beides fließt direkt in „Noch zu verplanen“ ein.
-- **Raster-Ansicht**: Linke Spalte mit Name/Personalnummer, Stundensoll und „Noch zu verplanen“, rechts gleich breite Tagesspalten mit Datum & Wochentag, Geburtstags-Icon, U/K-Badges, Sperr-Checkbox und Dropdown je Zelle.
-- **Offene Dienste**: Unterhalb des Kalenders zeigt eine zusätzliche Zeile pro Tag alle noch unbesetzten Dienste an – sobald alles geplant ist, färbt sich die Zelle grün.
-- **Farbcodierung**: Dezente Hintergründe für Samstag, Sonntag und Feiertage sorgen für Orientierung, bleiben aber gut lesbar.
-- **Reihenfolge & Gruppen**: Drag-&-Drop-Sortierung, Gruppierung und Umbenennen/Löschen von Gruppen inklusive Kontextbuttons im linken Menübereich, die erst erscheinen, wenn mindestens eine Zeile ausgewählt ist (die Dienstplan-Ansicht bleibt dadurch stabil, selbst wenn eine Gruppenerstellung abgebrochen wird).
-- **Navigation & Datenablage**: Linke Menüleiste zum Umschalten zwischen Dienstplan und Admin-Formularen, Pfeiltasten- und Button-Navigation durch die Monate sowie ein eigener Block für den JSON-Export/-Import.
-- **Interaktion & Auto-Planung**: Dropdowns setzen Dienste direkt, Sperren schützen Zellen; „Dienstplan generieren“ berücksichtigt Funktionen, Wochentags-/Feiertagsregeln, Nachtdienst-Restriktionen, Urlaube, Krankenstände, Sperren und alle Limitwerte.
+- **Zwei Dienstplan-Modi**: „Dienstplan bearbeiten“ mit Dropdowns/Sperren sowie eine reine „Dienstplan Ansicht“, die alle Einträge wie finale U/K/P/SU-Pills darstellt. Ein eigener Button erstellt eine druckoptimierte PDF (Querformat) inklusive Dienstlegende.
+- **Stunden- & Dienstmetriken**: Neben Stundensoll und „Noch zu verplanen“ zeigt jede Zeile jetzt die Anzahl der Nachtdienste sowie der Sonn-/Feiertagsdienste; Unterdeckung färbt sich rot.
+- **Nicht verplante Dienste & Legende**: Die Zusatzzeile unter dem Raster listet pro Tag alle offenen Dienste und färbt sich grün, sobald alles verplant ist. Darunter erläutert eine Legende die Dienstzeiten.
+- **Mitarbeiterverwaltung**: Dropdown zum Laden bestehender Personen, Bestätigungsdialog beim Überschreiben, Anzeige von Urlaubskontingent inkl. Übertrag sowie neue Felder für Durchrechnungsfaktor, tägliche Sollarbeitszeit, Urlaubsanspruch und Personalnummer.
+- **Urlaubsarten**: Urlaub, Sonderurlaub und Sonderurlaub 2 (mit Pflichtfeld „Grund“). Sonderurlaub 2 behält den ursprünglichen Dienst (durchgestrichen), andere Varianten blocken und rechnen automatisch die tägliche Sollarbeitszeit. Alle Urlaube erscheinen in der Übersicht, im Kalender als Pillen und in den Logs.
+- **Krankenstandsarten**: Krankenstand, Pflegeurlaub und Pflegeurlaub 2 mit separater „Krankmeldung erhalten“-Checkbox, Icons für fehlende/bestätigte Meldungen und Anzeige als K/P/P2 im Raster (Pflegeurlaub 2 hält den Dienst strichmarkiert).
+- **Übersichtskarten mit Logs**: Jeder gespeicherte Datensatz (Mitarbeiter, Dienste, Funktionen, Anstellungsverhältnisse, Regeln) besitzt direkt angehängte Details-Blöcke mit Urlaubs-/Krankenstandlisten bzw. Bereichs-Logs, die sich pro Eintrag auf- und zuklappen lassen.
+- **Dienste, Funktionen & Anstellungsverhältnisse**: Namen, Zeitfenster bzw. Prozent-/Stundenwerte werden gespeichert, protokolliert und stehen sofort in allen Dropdowns zur Verfügung.
+- **Regelwerk**: Ruhezeiten, Wochen-/Monatsstunden, Wochenenden, Nachtdienste sowie Pflichtdienste pro Wochentag oder Feiertag lassen sich per Chip-UI pflegen; Änderungen landen im Regel-Log.
+- **Gruppierung & Sortierung**: Mitarbeitende können per Checkbox ausgewählt, gruppiert, umsortiert oder aus Gruppen gelöst werden; die Werkzeuge erscheinen erst bei aktiver Auswahl.
+- **Navigation & Speicherung**: Linkes Menü zum Umschalten zwischen Dienstplan und Admin-Bereichen, Monatsnavigation via Buttons/Pfeiltasten sowie ein JSON-Export/-Import („Datenablage“) für lokale Sicherungen.
+- **Automatische Planung**: Die Generator-Logik verteilt Dienste gemäß Funktionen, Regeln, Nacht-/Wochenendlmits, Urlaubs-/Krankenstands-Sperren sowie individuellen Zell-Sperren und respektiert Sonderurlaub/Pflegeurlaub 2.
 
 ## Dateien
 
