@@ -22,13 +22,13 @@
     <nav class="main-menu" aria-label="Hauptmenü">
       <details class="menu-accordion" open>
         <summary>
+          <span class="menu-icon" aria-hidden="true">📅</span>
           <span>Dienstplan</span>
         </summary>
         <div class="menu-accordion__body">
           <div class="menu-group__items">
             <button type="button" data-target="roster" class="active">Dienstplan</button>
-            <button type="button" data-target="vacationOverview">Urlaubsmonitor</button>
-            <button type="button" data-target="employees">Mitarbeiter</button>
+            <button type="button" data-target="employees" id="menuEmployeesBtn">Mitarbeiter<span class="alert-indicator" id="menuEmployeeAlert" aria-hidden="true" hidden></span></button>
             <button type="button" data-target="services">Dienste</button>
             <button type="button" data-target="functions">Funktionen</button>
             <button type="button" data-target="employment">Anstellungsverhältnisse</button>
@@ -85,6 +85,13 @@
           <table id="rosterTable" aria-describedby="monthLabel"></table>
         </div>
         <div id="serviceLegend" class="service-legend"></div>
+        <section class="overview-block roster-vacations">
+          <div class="overview-header">
+            <p class="eyebrow">Urlaubsbelegung</p>
+            <h3>Auslastung pro Tag</h3>
+          </div>
+          <div id="vacationChart" class="vacation-chart" aria-live="polite"></div>
+        </section>
         <details class="log-panel">
           <summary>Log anzeigen</summary>
           <ul id="rosterLog" class="log-list"></ul>
@@ -122,6 +129,9 @@
             <label>Urlaubstage pro Jahr<input type="number" name="vacationDays" min="0" step="1" required></label>
             <label class="checkbox">
               <input type="checkbox" name="nightAllowed"> Nachtdienst Ja/Nein
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="doubleNights"> Doppelnächte
             </label>
             <label class="checkbox">
               <input type="checkbox" name="rkt"> RKT Ja/Nein
@@ -180,6 +190,7 @@
           </section>
           <section class="overview-block">
             <div class="overview-header">
+              <span class="alert-indicator" id="openSickIndicator" aria-hidden="true" hidden></span>
               <p class="eyebrow">Offene Krankmeldungen</p>
               <h3>Rückmeldungen ausständig</h3>
             </div>
@@ -284,11 +295,15 @@
           <form id="rulesForm" class="grid">
             <label>Ruhetage nach Dienst (Tage)<input type="number" name="restDays" min="0" step="1"></label>
             <label>Max. Arbeitszeit pro Woche (Stunden)<input type="number" name="maxHoursWeek" min="0" step="1"></label>
-            <label>Max. Arbeitszeit pro Monat (Stunden)<input type="number" name="maxHoursMonth" min="0" step="1"></label>
-            <label>Max. Wochenenden verplant (Tage)<input type="number" name="maxWeekendDays" min="0" step="1"></label>
+            <label>Freizuhaltende Wochenenden (Anzahl)<input type="number" name="minFreeWeekends" min="0" step="1"></label>
             <label>Max. Nachtdienste<input type="number" name="maxNights" min="0" step="1"></label>
+            <label>Standard Urlaubskapazität pro Tag<input type="number" name="vacationDefault" id="vacationDefault" min="0" step="1"></label>
             <div class="weekday-services">
               <p class="eyebrow">Pflichtdienste pro Wochentag</p>
+              <div class="weekday-meta">
+                <label>Gültig ab<input type="date" name="weekdayRangeStart" id="weekdayRangeStart"></label>
+                <label>Gültig bis<input type="date" name="weekdayRangeEnd" id="weekdayRangeEnd"></label>
+              </div>
               <div class="weekday-grid">
                 <div class="weekday-field" data-weekday-field="1">
                   <strong>Montag</strong>
@@ -362,44 +377,38 @@
           </form>
           <section class="overview-block">
             <div class="overview-header">
+              <p class="eyebrow">Aktive Pflichtdienste</p>
+              <h3>Historie</h3>
+            </div>
+            <div class="list" id="weekdayHistory" aria-live="polite"></div>
+          </section>
+          <section class="overview-block">
+            <div class="overview-header">
               <p class="eyebrow">Übersicht</p>
               <h3>Regelzusammenfassung</h3>
             </div>
             <div class="list" id="rulesSummary" aria-live="polite"></div>
           </section>
-        </div>
-      </section>
-
-      <section class="panel admin" data-screen="vacationOverview" hidden>
-        <div class="panel__header">
-          <h2>Urlaubsmonitor</h2>
-          <p class="muted">Maximale Urlaubskapazitäten definieren und Auslastung pro Tag prüfen.</p>
-        </div>
-        <div class="admin-panel vacation-monitor">
-          <form id="vacationLimitForm" class="vacation-limit-form">
-            <label>Datum
-              <input type="date" id="vacationLimitDate">
-            </label>
-            <label>Max. Urlauber*innen
-              <input type="number" id="vacationLimitValue" min="0" step="1">
-            </label>
-            <div class="form-actions">
-              <button type="submit" class="primary">Limit speichern</button>
-            </div>
-          </form>
           <section class="overview-block">
             <div class="overview-header">
-              <p class="eyebrow">Aktive Limits</p>
-              <h3>Einzeltermine</h3>
+              <p class="eyebrow">Urlaubskapazitäten</p>
+              <h3>Ausnahmen verwalten</h3>
             </div>
+            <form id="vacationLimitForm" class="vacation-limit-form">
+              <label>Datum von
+                <input type="date" id="vacationLimitStart">
+              </label>
+              <label>Datum bis
+                <input type="date" id="vacationLimitEnd">
+              </label>
+              <label>Max. Urlauber*innen
+                <input type="number" id="vacationLimitValue" min="0" step="1">
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="ghost">Ausnahme speichern</button>
+              </div>
+            </form>
             <div class="list" id="vacationLimitList" aria-live="polite"></div>
-          </section>
-          <section class="overview-block">
-            <div class="overview-header">
-              <p class="eyebrow">Auslastung</p>
-              <h3>Monatliche Urlaubsübersicht</h3>
-            </div>
-            <div id="vacationChart" class="vacation-chart" aria-live="polite"></div>
           </section>
         </div>
       </section>

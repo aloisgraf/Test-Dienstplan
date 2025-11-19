@@ -87,6 +87,7 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     dailyWorkHours: 8,
     hireDate: '2023-01-01',
     endDate: '',
+    doubleNights: false,
   },
   {
     id: uuid(),
@@ -107,6 +108,7 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     dailyWorkHours: 8,
     hireDate: '2023-01-01',
     endDate: '',
+    doubleNights: false,
   },
   {
     id: uuid(),
@@ -127,6 +129,7 @@ const DEFAULT_EMPLOYEES = (employment, functions) => [
     dailyWorkHours: 8,
     hireDate: '2023-01-01',
     endDate: '',
+    doubleNights: false,
   },
 ];
 
@@ -140,22 +143,32 @@ const DEFAULT_LOGS = {
   vacationLimits: [],
 };
 
+const defaultWeekdayServices = () => ({
+  0: [],
+  1: [],
+  2: [],
+  3: [],
+  4: [],
+  5: [],
+  6: [],
+  holiday: [],
+});
+
+const createWeekdayRule = (overrides = {}) => ({
+  id: uuid(),
+  start: '',
+  end: '',
+  services: defaultWeekdayServices(),
+  ...overrides,
+});
+
 const DEFAULT_RULES = {
   restDays: 1,
   maxHoursWeek: 40,
-  maxHoursMonth: 173,
-  maxWeekendDays: 6,
+  minFreeWeekends: 0,
   maxNights: 8,
-  weekdayServices: {
-    0: [],
-    1: [],
-    2: [],
-    3: [],
-    4: [],
-    5: [],
-    6: [],
-    holiday: [],
-  },
+  vacationDefault: 2,
+  weekdayRules: [createWeekdayRule()],
 };
 
 const SALZBURG_HOLIDAYS = {
@@ -176,6 +189,16 @@ const SALZBURG_HOLIDAYS = {
 };
 
 const WEEKDAY_KEYS = ['1', '2', '3', '4', '5', '6', '0', 'holiday'];
+const WEEKDAY_LABELS = {
+  0: 'Sonntag',
+  1: 'Montag',
+  2: 'Dienstag',
+  3: 'Mittwoch',
+  4: 'Donnerstag',
+  5: 'Freitag',
+  6: 'Samstag',
+  holiday: 'Feiertage',
+};
 
 const menuButtons = document.querySelectorAll('.main-menu button[data-target]');
 const screens = document.querySelectorAll('[data-screen]');
@@ -234,20 +257,27 @@ const serviceLegend = document.getElementById('serviceLegend');
 const themeToggle = document.getElementById('themeToggle');
 const openSickList = document.getElementById('openSickList');
 const vacationLimitForm = document.getElementById('vacationLimitForm');
-const vacationLimitDate = document.getElementById('vacationLimitDate');
+const vacationLimitStart = document.getElementById('vacationLimitStart');
+const vacationLimitEnd = document.getElementById('vacationLimitEnd');
 const vacationLimitValue = document.getElementById('vacationLimitValue');
 const vacationLimitList = document.getElementById('vacationLimitList');
 const vacationChart = document.getElementById('vacationChart');
+const vacationDefaultInput = document.getElementById('vacationDefault');
+const weekdayRangeStart = document.getElementById('weekdayRangeStart');
+const weekdayRangeEnd = document.getElementById('weekdayRangeEnd');
+const weekdayHistory = document.getElementById('weekdayHistory');
+const menuEmployeeAlert = document.getElementById('menuEmployeeAlert');
+const openSickIndicator = document.getElementById('openSickIndicator');
 const logElements = {
   roster: document.getElementById('rosterLog'),
 };
 
 let state = loadState();
-state.vacationLimits = state.vacationLimits || {};
+state.vacationLimits = Array.isArray(state.vacationLimits) ? state.vacationLimits : [];
 let currentMonth = new Date();
 currentMonth.setDate(1);
 const editing = { employee: null, service: null, function: null, employment: null };
-let weekdaySelections = ensureWeekdaySelections(state.rules.weekdayServices);
+let weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
 let selectedRows = new Set();
 let draggingRowId = null;
 let rosterMode = 'edit';
@@ -263,8 +293,13 @@ function loadState() {
   const rules = {
     ...DEFAULT_RULES,
     ...storedRules,
-    weekdayServices: { ...DEFAULT_RULES.weekdayServices, ...(storedRules?.weekdayServices || {}) },
   };
+  rules.minFreeWeekends =
+    storedRules?.minFreeWeekends ?? storedRules?.maxWeekendDays ?? DEFAULT_RULES.minFreeWeekends;
+  rules.weekdayRules = normalizeWeekdayRules(storedRules, services);
+  rules.vacationDefault = Number.isFinite(Number(rules.vacationDefault))
+    ? Number(rules.vacationDefault)
+    : DEFAULT_RULES.vacationDefault;
   const assignments = loadValue(STORAGE_KEYS.assignments, {});
   const locks = loadValue(STORAGE_KEYS.locks, {});
   const groups = loadArray(STORAGE_KEYS.groups, []);
@@ -272,7 +307,7 @@ function loadState() {
   const employees = normalizeEmployees(employeesRaw, sanitizedGroups);
   const layout = ensureLayout(loadValue(STORAGE_KEYS.layout, null), employees);
   const logs = ensureLogs(loadValue(STORAGE_KEYS.logs, DEFAULT_LOGS));
-  const vacationLimits = loadValue(STORAGE_KEYS.vacationLimits, {});
+  const vacationLimits = normalizeVacationLimits(loadValue(STORAGE_KEYS.vacationLimits, []));
   cleanEmployeeGroups(employees, sanitizedGroups);
   return {
     employment,
@@ -345,9 +380,57 @@ function normalizeEmployees(employees = [], groups = []) {
       groupId: emp.groupId && groups.some((g) => g.id === emp.groupId) ? emp.groupId : null,
       hireDate,
       endDate,
+      doubleNights: !!emp.doubleNights,
     };
     return normalized;
   });
+}
+
+function sanitizeDateValue(value) {
+  const date = parseISODate(value);
+  return date ? formatISODate(date) : '';
+}
+
+function normalizeWeekdayRules(rawRules = {}, services = []) {
+  const list = Array.isArray(rawRules?.weekdayRules) && rawRules.weekdayRules.length
+    ? rawRules.weekdayRules
+    : [{ services: rawRules?.weekdayServices || defaultWeekdayServices(), start: '', end: '' }];
+  const normalized = list
+    .map((entry) => ({
+      id: entry.id || uuid(),
+      start: sanitizeDateValue(entry.start),
+      end: sanitizeDateValue(entry.end),
+      services: ensureWeekdaySelections(entry.services || {}, services),
+    }))
+    .filter((entry) => !!entry);
+  return normalized.length ? normalized : [createWeekdayRule({ services: ensureWeekdaySelections({}, services) })];
+}
+
+function normalizeVacationLimits(raw) {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => {
+        const start = sanitizeDateValue(entry.start);
+        const end = sanitizeDateValue(entry.end || entry.start);
+        const limit = Number(entry.limit);
+        if (!start || !Number.isFinite(limit)) return null;
+        return { id: entry.id || uuid(), start, end: end || start, limit };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.start.localeCompare(b.start));
+  }
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw)
+      .map(([dateStr, value]) => {
+        const start = sanitizeDateValue(dateStr);
+        const limit = Number(value);
+        if (!start || !Number.isFinite(limit)) return null;
+        return { id: uuid(), start, end: start, limit };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.start.localeCompare(b.start));
+  }
+  return [];
 }
 
 function normalizeVacationEntries(entries = []) {
@@ -393,13 +476,14 @@ function normalizeSickEntries(entries = []) {
 function ensureLayout(layout, employees) {
   const ids = employees.map((emp) => emp.id);
   if (!layout || !Array.isArray(layout.order)) {
-    return { order: ids.slice() };
+    return { order: ids.slice(), generatorPivot: 0 };
   }
   const order = layout.order.filter((id) => ids.includes(id));
   ids.forEach((id) => {
     if (!order.includes(id)) order.push(id);
   });
-  return { order };
+  const generatorPivot = Number.isFinite(layout.generatorPivot) ? layout.generatorPivot : 0;
+  return { order, generatorPivot };
 }
 
 function ensureLogs(logs = DEFAULT_LOGS) {
@@ -520,26 +604,32 @@ function importState(json) {
     const parsed = JSON.parse(json);
     const parsedGroups = sanitizeGroups(parsed.groups ?? []);
     const employees = normalizeEmployees(parsed.employees ?? [], parsedGroups);
+    const services = parsed.services ?? [];
+    const parsedRules = parsed.rules || {};
+    const rules = {
+      ...DEFAULT_RULES,
+      ...parsedRules,
+    };
+    rules.minFreeWeekends =
+      parsedRules.minFreeWeekends ?? parsedRules.maxWeekendDays ?? DEFAULT_RULES.minFreeWeekends;
+    rules.weekdayRules = normalizeWeekdayRules(parsedRules, services);
+    rules.vacationDefault = Number.isFinite(Number(rules.vacationDefault))
+      ? Number(rules.vacationDefault)
+      : DEFAULT_RULES.vacationDefault;
     state = {
       employees,
-      services: parsed.services ?? [],
+      services,
       functions: parsed.functions ?? [],
       employment: parsed.employment ?? [],
-      rules: {
-        ...DEFAULT_RULES,
-        ...(parsed.rules || {}),
-        weekdayServices: {
-          ...DEFAULT_RULES.weekdayServices,
-          ...(parsed.rules?.weekdayServices || {}),
-        },
-      },
+      rules,
       assignments: parsed.assignments ?? {},
       locks: parsed.locks ?? {},
       groups: parsedGroups,
       layout: ensureLayout(parsed.layout, employees),
       logs: ensureLogs(parsed.logs ?? DEFAULT_LOGS),
-      vacationLimits: parsed.vacationLimits ?? {},
+      vacationLimits: normalizeVacationLimits(parsed.vacationLimits),
     };
+    weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
     cleanEmployeeGroups(state.employees, state.groups);
     editing.employee = null;
     editing.service = null;
@@ -639,6 +729,10 @@ function weekdayLabel(date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long' });
 }
 
+function weekdayLabelFromKey(key) {
+  return WEEKDAY_LABELS[key] || key;
+}
+
 function isWeekend(date) {
   const w = date.getDay();
   return w === 0 || w === 6;
@@ -647,6 +741,28 @@ function isWeekend(date) {
 function isHoliday(date) {
   const key = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return SALZBURG_HOLIDAYS[key];
+}
+
+function isDateWithinRange(date, startStr, endStr) {
+  const start = parseISODate(startStr);
+  const end = parseISODate(endStr);
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
+function findWeekdayRuleForDate(date) {
+  const rules = state.rules?.weekdayRules || [];
+  if (!rules.length) return null;
+  const matches = rules.filter((rule) => isDateWithinRange(date, rule.start, rule.end));
+  if (matches.length) {
+    return matches.sort((a, b) => (a.start || '').localeCompare(b.start || ''))[matches.length - 1];
+  }
+  return rules.slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''))[rules.length - 1];
+}
+
+function currentWeekdayRule() {
+  return findWeekdayRuleForDate(currentMonth) || state.rules?.weekdayRules?.[0] || null;
 }
 
 function parseTime(timeString) {
@@ -831,6 +947,17 @@ function isEmployeeActiveInMonth(emp, monthDate) {
   return true;
 }
 
+function isEmployeeFullMonth(emp, monthDate) {
+  if (!isEmployeeActiveInMonth(emp, monthDate)) return false;
+  const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const hire = parseISODate(emp.hireDate);
+  const exit = parseISODate(emp.endDate);
+  if (hire && hire > start) return false;
+  if (exit && exit < end) return false;
+  return true;
+}
+
 function activeDaysInMonth(emp, monthDate) {
   if (!isEmployeeActiveInMonth(emp, monthDate)) return 0;
   const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
@@ -874,12 +1001,60 @@ function countVacationsOnDate(date) {
   return state.employees.filter((emp) => isEmployeeActiveOnDate(emp, date) && !!findVacationOnDate(emp, date)).length;
 }
 
+function weekendKeyForDate(date) {
+  if (!isWeekend(date)) return null;
+  const saturday = date.getDay() === 6 ? date : new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);
+  if (
+    saturday.getMonth() === currentMonth.getMonth() &&
+    saturday.getFullYear() === currentMonth.getFullYear()
+  ) {
+    return `${saturday.getFullYear()}-${saturday.getMonth()}-${saturday.getDate()}`;
+  }
+  if (date.getDay() === 0) {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  }
+  return null;
+}
+
+function weekendKeyForDay(day) {
+  const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+  return weekendKeyForDate(date);
+}
+
+function workedWeekendSet(monthKey, empId) {
+  const assignments = state.assignments[monthKey]?.[empId] || {};
+  const keys = new Set();
+  Object.keys(assignments).forEach((dayStr) => {
+    const day = Number(dayStr);
+    if (!assignments[day]) return;
+    const key = weekendKeyForDay(day);
+    if (key) keys.add(key);
+  });
+  return keys;
+}
+
+function totalWeekendsInMonth(date) {
+  let count = 0;
+  const days = daysInMonth(date);
+  for (let i = 1; i <= days; i++) {
+    const d = new Date(date.getFullYear(), date.getMonth(), i);
+    if (d.getDay() === 6) count++;
+  }
+  return count;
+}
+
 function getVacationLimitForDate(date) {
-  if (!date) return null;
-  const key = formatISODate(date);
-  const raw = state.vacationLimits?.[key];
-  const value = Number(raw);
-  return Number.isFinite(value) && value > 0 ? value : null;
+  const overrides = state.vacationLimits || [];
+  if (date) {
+    const match = overrides.find((entry) => isDateWithinRange(date, entry.start, entry.end));
+    if (match && Number.isFinite(Number(match.limit))) {
+      const limit = Number(match.limit);
+      if (limit > 0) return limit;
+      return null;
+    }
+  }
+  const fallback = Number(state.rules?.vacationDefault);
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
 }
 
 function applyTheme(theme) {
@@ -942,24 +1117,26 @@ function clearAssignmentsForRange(empId, startStr, endStr, options = {}) {
   }
 }
 
-function ensureWeekdaySelections(source = {}) {
+function ensureWeekdaySelections(source = {}, servicesList = state?.services ?? []) {
   const cleaned = {};
+  const validIds = new Set((servicesList || []).map((s) => s.id));
   WEEKDAY_KEYS.forEach((key) => {
     const raw = Array.isArray(source?.[key]) ? source[key] : [];
-    cleaned[key] = raw.filter((id) => state.services.some((s) => s.id === id));
+    cleaned[key] = raw.filter((id) => validIds.has(id));
   });
   return cleaned;
 }
 
 function getRequiredServiceIdsForDate(date) {
-  const rules = state.rules?.weekdayServices || {};
+  const rule = findWeekdayRuleForDate(date);
+  const config = rule?.services || {};
   const holidayLabel = isHoliday(date);
   const weekday = date.getDay();
   let ids = [];
-  if (holidayLabel && rules.holiday?.length) {
-    ids = rules.holiday;
-  } else if (rules[weekday]?.length) {
-    ids = rules[weekday];
+  if (holidayLabel && config.holiday?.length) {
+    ids = config.holiday;
+  } else if (config[weekday]?.length) {
+    ids = config[weekday];
   }
   const filtered = ids.filter((id) => state.services.some((s) => s.id === id));
   if (filtered.length) return filtered;
@@ -1053,7 +1230,7 @@ function renderEmployees() {
             <small>PNR ${emp.personnelNumber} · ${emp.birthday}</small>
             <small>${percent?.percent ?? '?'}% · ${hours?.hours ?? '?'} Std · ${func?.name ?? 'keine Funktion'} · Nacht: ${
               emp.nightAllowed ? 'ja' : 'nein'
-            } · RKT: ${emp.rkt ? 'ja' : 'nein'}</small>
+            } · RKT: ${emp.rkt ? 'ja' : 'nein'} · Doppelnacht: ${emp.doubleNights ? 'ja' : 'nein'}</small>
             <small>${hireInfo}${exitInfo}</small>
           </div>
           <div class="employee-card__meta">${employeeVacationLine(emp)}</div>
@@ -1353,26 +1530,28 @@ function handleSickListClick(event) {
 
 function handleVacationLimitSubmit(event) {
   event.preventDefault();
-  if (!vacationLimitDate) return;
-  state.vacationLimits = state.vacationLimits || {};
-  const dateStr = vacationLimitDate.value;
-  if (!dateStr) {
-    alert('Bitte ein Datum auswählen.');
+  if (!vacationLimitStart) return;
+  const start = vacationLimitStart.value;
+  if (!start) {
+    alert('Bitte ein Startdatum angeben.');
     return;
   }
+  const end = vacationLimitEnd?.value || start;
   const value = Number(vacationLimitValue?.value);
   if (!Number.isFinite(value) || value < 0) {
     alert('Bitte einen gültigen Wert eingeben.');
     return;
   }
-  const date = parseISODate(dateStr);
-  const label = date ? date.toLocaleDateString('de-AT', { dateStyle: 'medium' }) : dateStr;
+  const rangeLabel = `${formatShortDate(start)}${end && end !== start ? ` – ${formatShortDate(end)}` : ''}`;
+  state.vacationLimits = state.vacationLimits || [];
+  const existing = state.vacationLimits.find((entry) => entry.start === start && entry.end === end);
+  state.vacationLimits = state.vacationLimits.filter((entry) => entry !== existing);
   if (value === 0) {
-    delete state.vacationLimits[dateStr];
-    appendLog('vacationLimits', `Urlaubslimit für ${label} entfernt.`, dateStr);
+    appendLog('vacationLimits', `Urlaubslimit für ${rangeLabel} entfernt.`, existing?.id || `${start}-${end}`);
   } else {
-    state.vacationLimits[dateStr] = value;
-    appendLog('vacationLimits', `Urlaubslimit ${value} Personen für ${label} gespeichert.`, dateStr);
+    const entry = { id: existing?.id || uuid(), start, end, limit: value };
+    state.vacationLimits.push(entry);
+    appendLog('vacationLimits', `Urlaubslimit ${value} Personen für ${rangeLabel} gespeichert.`, entry.id);
   }
   if (vacationLimitValue) vacationLimitValue.value = '';
   saveState();
@@ -1382,13 +1561,16 @@ function handleVacationLimitSubmit(event) {
 function handleVacationLimitListClick(event) {
   const button = event.target instanceof Element ? event.target.closest('[data-remove-limit]') : null;
   if (!button) return;
-  const key = button.dataset.removeLimit;
-  if (!key || !state.vacationLimits?.[key]) return;
-  const date = parseISODate(key);
-  const label = date ? date.toLocaleDateString('de-AT', { dateStyle: 'medium' }) : key;
-  if (!confirm(`Urlaubslimit für ${label} wirklich löschen?`)) return;
-  delete state.vacationLimits[key];
-  appendLog('vacationLimits', `Urlaubslimit für ${label} gelöscht.`, key);
+  const entryId = button.dataset.removeLimit;
+  if (!entryId) return;
+  const entry = (state.vacationLimits || []).find((item) => item.id === entryId);
+  if (!entry) return;
+  const rangeLabel = `${formatShortDate(entry.start)}${
+    entry.end && entry.end !== entry.start ? ` – ${formatShortDate(entry.end)}` : ''
+  }`;
+  if (!confirm(`Urlaubslimit für ${rangeLabel} wirklich löschen?`)) return;
+  state.vacationLimits = state.vacationLimits.filter((item) => item.id !== entryId);
+  appendLog('vacationLimits', `Urlaubslimit für ${rangeLabel} gelöscht.`, entryId);
   saveState();
   renderVacationMonitor();
 }
@@ -1507,6 +1689,47 @@ function renderWeekdayControls() {
   renderWeekdayLists();
 }
 
+function renderWeekdayHistory() {
+  if (!weekdayHistory) return;
+  const rules = state.rules?.weekdayRules || [];
+  if (!rules.length) {
+    weekdayHistory.innerHTML = '<p class="muted">Noch keine Einträge.</p>';
+    return;
+  }
+  const sorted = rules
+    .slice()
+    .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  weekdayHistory.innerHTML = sorted
+    .map((rule) => {
+      const start = rule.start ? formatShortDate(rule.start) : 'ohne Start';
+      const end = rule.end ? formatShortDate(rule.end) : 'offen';
+      const range = rule.start || rule.end ? `${start} – ${end}` : 'Ohne Begrenzung';
+      const services = WEEKDAY_KEYS.map((key) => {
+        const ids = rule.services?.[key] || [];
+        if (!ids.length) return '';
+        const names = ids
+          .map((id) => state.services.find((s) => s.id === id)?.name || '')
+          .filter(Boolean)
+          .join(', ');
+        if (!names) return '';
+        return `<small>${weekdayLabelFromKey(key)}: ${names}</small>`;
+      })
+        .filter(Boolean)
+        .join('');
+      return `
+        <div class="item">
+          <div>
+            <strong>${range}</strong>
+            ${services || '<small class="muted">Keine Dienste definiert</small>'}
+          </div>
+          <div class="entry-actions">
+            <button type="button" class="ghost" data-delete-weekday-rule="${rule.id}">Entfernen</button>
+          </div>
+        </div>`;
+    })
+    .join('');
+}
+
 function setupWeekdayInteractions() {
   weekdayFields.forEach((field) => {
     const weekday = field.dataset.weekdayField;
@@ -1535,6 +1758,27 @@ function setupWeekdayInteractions() {
       });
     }
   });
+  if (weekdayHistory) {
+    weekdayHistory.addEventListener('click', handleWeekdayHistoryClick);
+  }
+}
+
+function handleWeekdayHistoryClick(event) {
+  const button = event.target instanceof Element ? event.target.closest('[data-delete-weekday-rule]') : null;
+  if (!button) return;
+  const id = button.dataset.deleteWeekdayRule;
+  if (!id) return;
+  if (!confirm('Diesen Pflichtdienst-Zeitraum wirklich löschen?')) return;
+  state.rules.weekdayRules = (state.rules.weekdayRules || []).filter((rule) => rule.id !== id);
+  if (!state.rules.weekdayRules.length) {
+    state.rules.weekdayRules = [createWeekdayRule({ services: ensureWeekdaySelections({}, state.services) })];
+  }
+  weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
+  appendLog('rules', 'Pflichtdiensteintrag entfernt.', id);
+  saveState();
+  renderWeekdayHistory();
+  renderWeekdayControls();
+  renderRoster();
 }
 
 function renderRules() {
@@ -1542,17 +1786,21 @@ function renderRules() {
   const form = rulesForm.elements;
   form.restDays.value = r.restDays ?? '';
   form.maxHoursWeek.value = r.maxHoursWeek ?? '';
-  form.maxHoursMonth.value = r.maxHoursMonth ?? '';
-  form.maxWeekendDays.value = r.maxWeekendDays ?? '';
+  if (form.minFreeWeekends) form.minFreeWeekends.value = r.minFreeWeekends ?? '';
   form.maxNights.value = r.maxNights ?? '';
-  weekdaySelections = ensureWeekdaySelections(r.weekdayServices);
+  if (vacationDefaultInput) vacationDefaultInput.value = r.vacationDefault ?? '';
+  if (weekdayRangeStart) weekdayRangeStart.value = '';
+  if (weekdayRangeEnd) weekdayRangeEnd.value = '';
+  weekdaySelections = ensureWeekdaySelections(currentWeekdayRule()?.services || {}, state.services);
   renderWeekdayControls();
+  renderWeekdayHistory();
+  renderVacationLimitList();
   if (rulesSummary) {
     const summary = `<div><strong>Aktive Regeln</strong></div><small>Ruhe: ${r.restDays ?? '–'} Tage · Woche max: ${
       r.maxHoursWeek ?? '–'
-    } Std · Monat max: ${r.maxHoursMonth ?? '–'} Std · Wochenenden: ${r.maxWeekendDays ?? '–'} · Nachtdienste: ${
-      r.maxNights ?? '–'
-    }</small>`;
+    } Std · Freie Wochenenden: ${r.minFreeWeekends ?? '–'} · Nachtdienste: ${r.maxNights ?? '–'} · Urlaubslimit: ${
+      r.vacationDefault ?? '–'
+    } Personen</small>`;
     rulesSummary.innerHTML = `<div class="item">${summary}${renderLogDetails('rules', 'rules')}</div>`;
   }
 }
@@ -1575,32 +1823,35 @@ function renderLegend() {
 function renderVacationMonitor() {
   renderVacationLimitList();
   renderVacationChart();
-  if (vacationLimitDate && !vacationLimitDate.value) {
-    vacationLimitDate.value = formatISODate(currentMonth);
+  if (vacationLimitStart && !vacationLimitStart.value) {
+    vacationLimitStart.value = formatISODate(currentMonth);
+  }
+  if (vacationLimitEnd && !vacationLimitEnd.value) {
+    vacationLimitEnd.value = formatISODate(currentMonth);
   }
 }
 
 function renderVacationLimitList() {
   if (!vacationLimitList) return;
-  const entries = Object.entries(state.vacationLimits || {})
-    .filter(([, value]) => Number(value) > 0)
-    .sort(([a], [b]) => a.localeCompare(b));
+  const entries = (state.vacationLimits || [])
+    .slice()
+    .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
   if (!entries.length) {
     vacationLimitList.innerHTML = '<p class="muted">Keine Limits gesetzt.</p>';
     return;
   }
   vacationLimitList.innerHTML = entries
-    .map(([dateStr, value]) => {
-      const date = parseISODate(dateStr);
-      const label = date ? date.toLocaleDateString('de-AT', { dateStyle: 'medium' }) : dateStr;
-      const current = date ? countVacationsOnDate(date) : 0;
+    .map((entry) => {
+      const rangeLabel = `${formatShortDate(entry.start)}${
+        entry.end && entry.end !== entry.start ? ` – ${formatShortDate(entry.end)}` : ''
+      }`;
       return `
         <div class="item">
-          <div><strong>${label}</strong><br><small>Max. ${value} Personen · aktuell ${current}</small></div>
+          <div><strong>${rangeLabel}</strong><br><small>Max. ${entry.limit} Personen</small></div>
           <div class="entry-actions">
-            <button type="button" class="ghost" data-remove-limit="${dateStr}">Löschen</button>
+            <button type="button" class="ghost" data-remove-limit="${entry.id}">Löschen</button>
           </div>
-          ${renderLogDetails('vacationLimits', dateStr)}
+          ${renderLogDetails('vacationLimits', entry.id)}
         </div>`;
     })
     .join('');
@@ -1642,6 +1893,15 @@ function renderOpenSickList() {
       if (!entry.confirmed) entries.push({ emp, entry });
     });
   });
+  const hasOpen = entries.length > 0;
+  if (menuEmployeeAlert) {
+    menuEmployeeAlert.hidden = !hasOpen;
+    if (hasOpen) menuEmployeeAlert.textContent = '!';
+  }
+  if (openSickIndicator) {
+    openSickIndicator.hidden = !hasOpen;
+    if (hasOpen) openSickIndicator.textContent = '!';
+  }
   if (!entries.length) {
     openSickList.innerHTML = '<p class="muted">Keine offenen Krankmeldungen.</p>';
     return;
@@ -1687,6 +1947,7 @@ function fillEmployeeForm(emp) {
   form.endDate.value = emp.endDate || '';
   form.nightAllowed.checked = !!emp.nightAllowed;
   form.rkt.checked = !!emp.rkt;
+  form.doubleNights.checked = !!emp.doubleNights;
 }
 
 function fillServiceForm(service) {
@@ -1734,6 +1995,7 @@ function handleEmployeeForm(e) {
     hireDate: data.get('hireDate') || '',
     endDate: data.get('endDate') || '',
     nightAllowed: data.get('nightAllowed') === 'on',
+    doubleNights: data.get('doubleNights') === 'on',
     rkt: data.get('rkt') === 'on',
   };
 
@@ -1848,15 +2110,44 @@ function handleEmploymentForm(e) {
 function handleRulesForm(e) {
   e.preventDefault();
   const data = new FormData(rulesForm);
-  state.rules = {
-    restDays: toNumber(data.get('restDays')),
-    maxHoursWeek: toNumber(data.get('maxHoursWeek')),
-    maxHoursMonth: toNumber(data.get('maxHoursMonth')),
-    maxWeekendDays: toNumber(data.get('maxWeekendDays')),
-    maxNights: toNumber(data.get('maxNights')),
-    weekdayServices: ensureWeekdaySelections(weekdaySelections),
-  };
-  appendLog('rules', 'Regelwerk aktualisiert.', 'rules');
+  const selections = ensureWeekdaySelections(weekdaySelections, state.services);
+  const restDays = toNumber(data.get('restDays'));
+  const maxWeek = toNumber(data.get('maxHoursWeek'));
+  const minFreeWeekends = toNumber(data.get('minFreeWeekends'));
+  const maxNights = toNumber(data.get('maxNights'));
+  const vacationDefault = toNumber(data.get('vacationDefault'));
+  const start = data.get('weekdayRangeStart');
+  const end = data.get('weekdayRangeEnd');
+  state.rules.restDays = restDays;
+  state.rules.maxHoursWeek = maxWeek;
+  state.rules.minFreeWeekends = Number.isFinite(minFreeWeekends) ? minFreeWeekends : undefined;
+  state.rules.maxNights = maxNights;
+  state.rules.vacationDefault = Number.isFinite(vacationDefault)
+    ? vacationDefault
+    : state.rules.vacationDefault;
+  let message = 'Regelwerk aktualisiert.';
+  if (start) {
+    state.rules.weekdayRules = state.rules.weekdayRules || [];
+    const entry = {
+      id: uuid(),
+      start,
+      end: end || '',
+      services: selections,
+    };
+    state.rules.weekdayRules.push(entry);
+    weekdaySelections = ensureWeekdaySelections(entry.services, state.services);
+    if (weekdayRangeStart) weekdayRangeStart.value = '';
+    if (weekdayRangeEnd) weekdayRangeEnd.value = '';
+    message = `Pflichtdienste ab ${formatShortDate(start)} gespeichert.`;
+  } else if (state.rules.weekdayRules?.length) {
+    const active = currentWeekdayRule();
+    if (active) {
+      active.services = selections;
+    }
+  } else {
+    state.rules.weekdayRules = [createWeekdayRule({ services: selections })];
+  }
+  appendLog('rules', message, 'rules');
   saveState();
   renderRules();
   renderRoster();
@@ -1915,10 +2206,15 @@ function buildRosterHeader(date) {
 function renderRoster() {
   buildRosterHeader(currentMonth);
   const monthKey = getMonthKey(currentMonth);
+  ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
   cleanSelectedRows();
   const employees = getOrderedEmployees().filter((emp) => isEmployeeActiveInMonth(emp, currentMonth));
   const renderedGroups = new Set();
+  let assignmentsCleaned = false;
+  const markAssignmentsDirty = () => {
+    assignmentsCleaned = true;
+  };
 
   employees.forEach((emp) => {
     if (emp.groupId) {
@@ -1928,7 +2224,7 @@ function renderRoster() {
         renderedGroups.add(group.id);
       }
     }
-    rosterTable.appendChild(buildEmployeeRow(emp, monthKey, days));
+    rosterTable.appendChild(buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty));
   });
 
   const unassignedRow = document.createElement('tr');
@@ -1974,6 +2270,9 @@ function renderRoster() {
     }
   }
   updateRowToolStates();
+  if (assignmentsCleaned) {
+    saveState();
+  }
 }
 
 function buildGroupRow(group, days) {
@@ -2001,7 +2300,7 @@ function buildGroupRow(group, days) {
   return tr;
 }
 
-function buildEmployeeRow(emp, monthKey, days) {
+function buildEmployeeRow(emp, monthKey, days, markAssignmentsDirty) {
   const tr = document.createElement('tr');
   tr.dataset.empRow = emp.id;
   const targetHours = monthlyTargetHours(emp, currentMonth);
@@ -2039,16 +2338,29 @@ function buildEmployeeRow(emp, monthKey, days) {
   `;
   tr.appendChild(hoursCell);
 
+  const fullMonthAvailability = isEmployeeFullMonth(emp, currentMonth);
   for (let day = 1; day <= days; day++) {
     const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const cls = ['day-col'];
     if (isHoliday(d)) cls.push('holiday');
     else if (d.getDay() === 0) cls.push('weekend');
     else if (d.getDay() === 6) cls.push('saturday');
+    const activeOnDate = isEmployeeActiveOnDate(emp, d);
     const monthAssignments = state.assignments[monthKey] || {};
     const monthLocks = state.locks[monthKey] || {};
-    const assign = monthAssignments[emp.id]?.[day] ?? '';
+    let assign = monthAssignments[emp.id]?.[day] ?? '';
     const locked = !!monthLocks[emp.id]?.[day];
+    const canAssign = fullMonthAvailability && activeOnDate;
+    if (!canAssign && assign && monthAssignments[emp.id]) {
+      delete monthAssignments[emp.id][day];
+      assign = '';
+      if (!Object.keys(monthAssignments[emp.id]).length) {
+        delete monthAssignments[emp.id];
+      }
+      if (typeof markAssignmentsDirty === 'function') {
+        markAssignmentsDirty();
+      }
+    }
     const serviceOptions = allowedServicesForEmployee(emp, assign);
     const selectPieces = ['<option value="">–</option>'];
     let includesAssigned = false;
@@ -2064,13 +2376,16 @@ function buildEmployeeRow(emp, monthKey, days) {
     }
     const options = selectPieces.join('');
     const td = document.createElement('td');
-    const vacationEntry = findVacationOnDate(emp, d);
-    const sickEntry = findSickOnDate(emp, d);
+    const vacationEntry = activeOnDate ? findVacationOnDate(emp, d) : null;
+    const sickEntry = activeOnDate ? findSickOnDate(emp, d) : null;
     const isBirthday = hasBirthdayOnDate(emp, d);
     if (vacationEntry) cls.push('vacation');
     if (sickEntry) cls.push('sick');
     td.className = cls.join(' ');
-    const selectDisabled = locked || !serviceOptions.length;
+    if (!canAssign) {
+      td.classList.add('inactive');
+    }
+    const selectDisabled = locked || !serviceOptions.length || !canAssign;
     const parts = ['<div class="cell">'];
     if (isBirthday) {
       parts.push('<span class="birthday-flag" title="Geburtstag">🎂</span>');
@@ -2086,7 +2401,9 @@ function buildEmployeeRow(emp, monthKey, days) {
     if (showServiceWithAbsence) {
       parts.push(renderServiceChip(service, { strike: true }));
     }
-    if (showAbsence) {
+    if (!activeOnDate) {
+      parts.push('<span class="muted">-</span>');
+    } else if (showAbsence) {
       const label = showVacation ? absenceMeta.label : sickMeta.label;
       const titleParts = [showVacation ? absenceMeta.name : sickMeta.name];
       if (showVacation && vacationEntry.reason) titleParts.push(`Grund: ${escapeHtml(vacationEntry.reason)}`);
@@ -2095,6 +2412,8 @@ function buildEmployeeRow(emp, monthKey, days) {
       parts.push(
         `<span class="absence-pill ${showVacation ? 'vacation' : 'sick'}" title="${title}">${label}</span>`
       );
+    } else if (!canAssign) {
+      parts.push('<span class="muted">-</span>');
     } else if (rosterMode === 'view') {
       if (service) {
         parts.push(renderServiceChip(service));
@@ -2306,15 +2625,6 @@ function handleRosterChange(e) {
   }
 }
 
-function countWeekends(monthKey, empId) {
-  const assignments = state.assignments[monthKey]?.[empId] || {};
-  return Object.entries(assignments).filter(([day, serviceId]) => {
-    if (!serviceId) return false;
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Number(day));
-    return isWeekend(d);
-  }).length;
-}
-
 function countNights(monthKey, empId) {
   const assignments = state.assignments[monthKey]?.[empId] || {};
   return Object.values(assignments).filter((serviceId) => {
@@ -2389,6 +2699,20 @@ function generateRoster() {
   ensureMonthMaps(monthKey);
   const days = daysInMonth(currentMonth);
   const rules = state.rules;
+  const totalWeekends = totalWeekendsInMonth(currentMonth);
+  const minFreeWeekends = Number(rules.minFreeWeekends) || 0;
+  const allowedWorkedWeekends = Math.max(totalWeekends - minFreeWeekends, 0);
+  const orderedEmployees = getOrderedEmployees().filter((emp) => isEmployeeFullMonth(emp, currentMonth));
+  const rawPivot = Number(state.layout?.generatorPivot) || 0;
+  const pivot = orderedEmployees.length ? rawPivot % orderedEmployees.length : 0;
+  const rotated = orderedEmployees.slice(pivot).concat(orderedEmployees.slice(0, pivot));
+  const weekendSets = new Map();
+  const getWeekendSet = (empId) => {
+    if (!weekendSets.has(empId)) {
+      weekendSets.set(empId, workedWeekendSet(monthKey, empId));
+    }
+    return weekendSets.get(empId);
+  };
 
   // Bestehende, nicht gesperrte Einträge für den Monat zurücksetzen
   state.employees.forEach((emp) => {
@@ -2411,7 +2735,7 @@ function generateRoster() {
     const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const servicesForDay = getRequiredServicesForDate(currentDate);
     for (const service of servicesForDay) {
-      state.employees
+      rotated
         .filter((emp) => {
           if (!isEmployeeActiveOnDate(emp, currentDate)) return false;
           const func = state.functions.find((f) => f.id === emp.functionId);
@@ -2419,11 +2743,9 @@ function generateRoster() {
           if (!allowed) return false;
           if (findVacationOnDate(emp, currentDate)) return false;
           if (findSickOnDate(emp, currentDate)) return false;
-          const isNight = isNightService(service);
-          if (isNight && !emp.nightAllowed) return false;
+          if (isNightService(service) && !emp.nightAllowed) return false;
           return true;
         })
-        .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
         .some((emp) => {
           ensureMonthMaps(monthKey);
           const locked = state.locks[monthKey]?.[emp.id]?.[day];
@@ -2432,18 +2754,38 @@ function generateRoster() {
           const already = state.assignments[monthKey][emp.id][day];
           if (already) return false;
           if (rules.restDays && workedRecently(emp.id, day, rules.restDays)) return false;
+          if (isNightService(service) && !emp.doubleNights) {
+            const prev = state.assignments[monthKey][emp.id][day - 1];
+            if (prev) {
+              const prevService = state.services.find((s) => s.id === prev);
+              if (isNightService(prevService)) return false;
+            }
+          }
+          const targetHours = monthlyTargetHours(emp, currentMonth);
           const nextHours = hoursForEmployee(monthKey, emp.id) + serviceDuration(service);
-          if (rules.maxHoursMonth && nextHours > rules.maxHoursMonth) return false;
-          const nextWeekends = countWeekends(monthKey, emp.id) + (isWeekend(currentDate) ? 1 : 0);
-          if (rules.maxWeekendDays && nextWeekends > rules.maxWeekendDays) return false;
+          if (targetHours && nextHours > targetHours) return false;
           const nextNights = countNights(monthKey, emp.id) + (isNightService(service) ? 1 : 0);
           if (rules.maxNights && nextNights > rules.maxNights) return false;
+          if (isWeekend(currentDate)) {
+            const weekendKey = weekendKeyForDate(currentDate);
+            const set = getWeekendSet(emp.id);
+            if (weekendKey && !set.has(weekendKey) && set.size >= allowedWorkedWeekends) {
+              return false;
+            }
+          }
           state.assignments[monthKey][emp.id][day] = service.id;
+          if (isWeekend(currentDate)) {
+            const weekendKey = weekendKeyForDate(currentDate);
+            if (weekendKey) {
+              getWeekendSet(emp.id).add(weekendKey);
+            }
+          }
           return true;
         });
     }
   }
   const label = currentMonth.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+  state.layout.generatorPivot = rotated.length ? (pivot + 1) % rotated.length : 0;
   appendLog('roster', `Dienstplan für ${label} generiert.`);
   saveState();
   renderRoster();
